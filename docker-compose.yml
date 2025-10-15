@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  neo4j:
+    image: neo4j:5.15-community
+    container_name: rag-engine-neo4j
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    environment:
+      - NEO4J_AUTH=${NEO4J_AUTH:-neo4j/password}
+      - NEO4J_dbms_memory_heap_initial__size=${NEO4J_HEAP_INITIAL:-1g}
+      - NEO4J_dbms_memory_heap_max__size=${NEO4J_HEAP_MAX:-2g}
+      - NEO4J_dbms_memory_pagecache_size=${NEO4J_PAGECACHE:-1g}
+      - NEO4J_PLUGINS=["apoc"]
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+    networks:
+      - rag-engine-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    container_name: rag-engine-api
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_AUTH=${NEO4J_AUTH:-neo4j/password}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+    volumes:
+      - ./services/api:/app
+      - ./shared:/app/shared
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    networks:
+      - rag-engine-network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  lightrag:
+    build:
+      context: ./services/lightrag
+      dockerfile: Dockerfile
+    container_name: rag-engine-lightrag
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_AUTH=${NEO4J_AUTH:-neo4j/password}
+      - LLM_PROVIDER=${LLM_PROVIDER:-litellm}
+      - LITELLM_ENDPOINT=${LITELLM_ENDPOINT:-http://litellm:4000}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./services/lightrag:/app
+      - ./shared:/app/shared
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    networks:
+      - rag-engine-network
+
+  rag-anything:
+    build:
+      context: ./services/rag-anything
+      dockerfile: Dockerfile
+    container_name: rag-engine-rag-anything
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./services/rag-anything:/app
+      - ./shared:/app/shared
+    networks:
+      - rag-engine-network
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: rag-engine-litellm
+    ports:
+      - "${LITELLM_PORT:-4000}:4000"
+    environment:
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-sk-1234}
+    volumes:
+      - ./config/litellm_config.yaml:/app/config.yaml
+    networks:
+      - rag-engine-network
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    profiles:
+      - with-litellm
+
+volumes:
+  neo4j-data:
+  neo4j-logs:
+
+networks:
+  rag-engine-network:
+    driver: bridge

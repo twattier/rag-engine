@@ -85,9 +85,16 @@ temp/
 *.db
 *.sqlite3
 
-# Model caches (sentence-transformers, etc)
+# Model caches (sentence-transformers, etc) - excluding source code directories
 .cache/
-models/
+*.pkl
+*.h5
+*.onnx
+*.pt
+*.pth
+**/sentence-transformers/
+**/huggingface/
+model-cache/
 
 # LiteLLM config (may contain API keys)
 litellm_config.yaml
