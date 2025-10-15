@@ -1,1 +1,1 @@
-"""Shared utility functions."""
+"""Shared utilities for RAG Engine."""
