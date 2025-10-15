@@ -1,0 +1,100 @@
+# RAG Engine .gitignore
+
+# Environment variables (contains secrets)
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# PyCharm
+.idea/
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+coverage.xml
+
+# Docker volumes and data
+neo4j-data/
+lightrag-data/
+backups/
+*.dump
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Test data
+test-data/
+tests/fixtures/generated/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Database dumps
+*.db
+*.sqlite3
+
+# Model caches (sentence-transformers, etc)
+.cache/
+models/
+
+# LiteLLM config (may contain API keys)
+litellm_config.yaml
+
+# Benchmark results (large files)
+benchmarks/*.json
+benchmarks/*.csv
+
+# CI/CD artifacts
+.github/workflows/*.log
