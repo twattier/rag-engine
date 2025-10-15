@@ -97,8 +97,11 @@ services:
 
 volumes:
   neo4j-data:
+    name: ${COMPOSE_PROJECT_NAME:-rag-engine}_neo4j-data
   neo4j-logs:
+    name: ${COMPOSE_PROJECT_NAME:-rag-engine}_neo4j-logs
 
 networks:
   rag-engine-network:
+    name: ${COMPOSE_PROJECT_NAME:-rag-engine}_network
     driver: bridge
