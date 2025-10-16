@@ -12,9 +12,9 @@ from typing import Optional
 
 from app.config import settings
 from shared.utils.neo4j_client import Neo4jClient, parse_neo4j_auth
-import structlog
+from shared.utils.logging import get_logger
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter()
 

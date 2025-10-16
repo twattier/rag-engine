@@ -7,9 +7,9 @@ from typing import Optional, Any
 from contextlib import contextmanager
 from neo4j import GraphDatabase, Driver, Session
 from neo4j.exceptions import ServiceUnavailable, AuthError
-import structlog
+from shared.utils.logging import get_logger
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class Neo4jClient:

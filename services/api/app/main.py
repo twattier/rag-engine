@@ -5,56 +5,19 @@ Provides REST API endpoints for document ingestion, retrieval, and knowledge gra
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-import structlog
 
 from app.config import settings
 from app.routers import health
+from app.middleware import RequestLoggingMiddleware
+from shared.utils.logging import configure_logging, get_logger
 
 # Version
 __version__ = "0.1.0"
 
-
-def configure_logging():
-    """Configure structured logging with structlog."""
-    if settings.LOG_FORMAT == "json":
-        # Production: JSON logs
-        structlog.configure(
-            processors=[
-                structlog.stdlib.filter_by_level,
-                structlog.stdlib.add_logger_name,
-                structlog.stdlib.add_log_level,
-                structlog.stdlib.PositionalArgumentsFormatter(),
-                structlog.processors.TimeStamper(fmt="iso"),
-                structlog.processors.StackInfoRenderer(),
-                structlog.processors.format_exc_info,
-                structlog.processors.UnicodeDecoder(),
-                structlog.processors.JSONRenderer(),
-            ],
-            wrapper_class=structlog.stdlib.BoundLogger,
-            logger_factory=structlog.stdlib.LoggerFactory(),
-            cache_logger_on_first_use=True,
-        )
-    else:
-        # Development: Console logs
-        structlog.configure(
-            processors=[
-                structlog.stdlib.filter_by_level,
-                structlog.stdlib.add_logger_name,
-                structlog.stdlib.add_log_level,
-                structlog.stdlib.PositionalArgumentsFormatter(),
-                structlog.processors.TimeStamper(fmt="iso"),
-                structlog.processors.StackInfoRenderer(),
-                structlog.processors.format_exc_info,
-                structlog.processors.UnicodeDecoder(),
-                structlog.dev.ConsoleRenderer(),
-            ],
-            wrapper_class=structlog.stdlib.BoundLogger,
-            logger_factory=structlog.stdlib.LoggerFactory(),
-            cache_logger_on_first_use=True,
-        )
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -62,15 +25,20 @@ async def lifespan(app: FastAPI):
     """
     Lifecycle manager for application startup and shutdown.
     """
-    # Startup
-    configure_logging()
-    logger = structlog.get_logger(__name__)
+    # Startup: Configure logging
+    configure_logging(
+        log_level=settings.LOG_LEVEL,
+        log_format=settings.LOG_FORMAT,
+        service_name="api",
+    )
 
     logger.info(
         "api_service_starting",
         version=__version__,
         log_level=settings.LOG_LEVEL,
+        log_format=settings.LOG_FORMAT,
         neo4j_uri=settings.NEO4J_URI,
+        api_port=settings.API_PORT,
     )
 
     yield
@@ -102,6 +70,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request logging middleware
+app.add_middleware(RequestLoggingMiddleware)
+
 # Include routers
 app.include_router(health.router, tags=["health"])
 
@@ -114,9 +85,28 @@ async def root() -> dict[str, str]:
     Returns:
         dict: API metadata including version and documentation URLs
     """
+    logger.debug("root_endpoint_accessed")
     return {
         "message": "RAG Engine API",
         "version": __version__,
         "docs_url": "/docs",
         "health_url": "/health",
+    }
+
+
+# Global exception handler for unhandled exceptions
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> dict[str, str]:
+    """Log unhandled exceptions with full context."""
+    logger.error(
+        "unhandled_exception",
+        path=request.url.path,
+        method=request.method,
+        error=str(exc),
+        error_type=type(exc).__name__,
+        exc_info=True,
+    )
+    return {
+        "error": "internal_server_error",
+        "message": "An unexpected error occurred. Please contact support.",
     }
