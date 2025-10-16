@@ -1,0 +1,28 @@
+metadata_fields:
+  - field_name: author
+    type: string
+    required: true
+    description: "Document author"
+
+  - field_name: version
+    type: integer
+    required: false
+    default: 1
+    description: "Version number"
+
+  - field_name: tags
+    type: tags
+    required: false
+    default: []
+    description: "Document tags"
+
+  - field_name: date_created
+    type: date
+    required: false
+    description: "Creation date"
+
+  - field_name: is_public
+    type: boolean
+    required: false
+    default: false
+    description: "Public visibility"

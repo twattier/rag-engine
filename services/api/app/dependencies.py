@@ -5,11 +5,14 @@ Includes database connections, authentication, etc.
 
 from __future__ import annotations
 
-from typing import Annotated
+from functools import lru_cache
+from typing import Annotated, Any, Dict
 
 from fastapi import Header, HTTPException, status
 
 from app.config import settings
+from shared.config.metadata_loader import load_metadata_schema
+from shared.models.metadata import MetadataSchema
 
 
 async def verify_api_key(
@@ -58,3 +61,71 @@ async def verify_api_key(
 
 # Type alias for dependency injection
 APIKeyDep = Annotated[str, Header(dependency=verify_api_key)]
+
+
+@lru_cache()
+def get_metadata_schema() -> MetadataSchema:
+    """Load and cache metadata schema.
+
+    Returns:
+        Loaded MetadataSchema object
+
+    Raises:
+        HTTPException: If schema file cannot be loaded
+    """
+    try:
+        return load_metadata_schema(settings.METADATA_SCHEMA_PATH)
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "code": "SCHEMA_NOT_FOUND",
+                    "message": str(e),
+                }
+            },
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "code": "INVALID_SCHEMA",
+                    "message": str(e),
+                }
+            },
+        )
+
+
+async def validate_document_metadata(
+    metadata: Dict[str, Any],
+    schema: MetadataSchema = None,
+) -> Dict[str, Any]:
+    """Validate document metadata against schema.
+
+    Args:
+        metadata: Dictionary of metadata fields to validate
+        schema: MetadataSchema to validate against (injected by FastAPI)
+
+    Returns:
+        Validated metadata dictionary with defaults applied
+
+    Raises:
+        HTTPException: If validation fails (HTTP 422)
+    """
+    if schema is None:
+        schema = get_metadata_schema()
+
+    try:
+        return schema.validate_metadata(metadata)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error": {
+                    "code": "INVALID_METADATA",
+                    "message": "Metadata validation failed",
+                    "validation_errors": str(e),
+                }
+            },
+        )

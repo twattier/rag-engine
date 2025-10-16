@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     REQUEST_TIMEOUT: int = 120
     MAX_CONCURRENT_REQUESTS: int = 10
 
+    # Metadata Configuration
+    METADATA_SCHEMA_PATH: str = "/app/config/metadata-schema.yaml"
+
     def get_cors_origins_list(self) -> list[str]:
         """Get CORS origins as a list."""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

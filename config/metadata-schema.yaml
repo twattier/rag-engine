@@ -1,0 +1,61 @@
+# Metadata Schema Configuration
+#
+# This file defines custom metadata fields for document organization and filtering.
+# Each field definition includes:
+#   - field_name: Unique identifier for the field
+#   - type: Data type (string, integer, date, boolean, tags)
+#   - required: Whether the field must be provided (true/false)
+#   - default: Default value if not provided (optional)
+#   - description: Human-readable explanation of the field
+#
+# Field Types:
+#   - string: Text values
+#   - integer: Whole numbers
+#   - date: ISO 8601 date format (YYYY-MM-DD)
+#   - boolean: true/false values
+#   - tags: List of string values for categorization
+
+metadata_fields:
+  - field_name: author
+    type: string
+    required: false
+    default: "Unknown"
+    description: "Document author name"
+
+  - field_name: department
+    type: string
+    required: false
+    description: "Department or organizational unit"
+
+  - field_name: date_created
+    type: date
+    required: false
+    description: "Document creation date (ISO 8601 format: YYYY-MM-DD)"
+
+  - field_name: tags
+    type: tags
+    required: false
+    default: []
+    description: "List of tags for categorization"
+
+  - field_name: project_name
+    type: string
+    required: false
+    description: "Associated project name"
+
+  - field_name: category
+    type: string
+    required: false
+    description: "Document category (e.g., report, manual, specification)"
+
+  - field_name: version
+    type: integer
+    required: false
+    default: 1
+    description: "Document version number"
+
+  - field_name: is_public
+    type: boolean
+    required: false
+    default: false
+    description: "Whether document is publicly accessible"
