@@ -12,6 +12,7 @@ from fastapi import Header, HTTPException, status
 
 from app.config import settings
 from app.middleware.rate_limiter import InMemoryRateLimiter
+from app.services.batch_service import BatchService
 from app.services.document_service import DocumentService
 from app.services.queue_service import LightRAGQueue
 from shared.config.metadata_loader import load_metadata_schema
@@ -140,6 +141,7 @@ _neo4j_client: Neo4jClient | None = None
 _rate_limiter: InMemoryRateLimiter | None = None
 _document_service: DocumentService | None = None
 _lightrag_queue: LightRAGQueue | None = None
+_batch_service: BatchService | None = None
 
 
 def get_neo4j_client() -> Neo4jClient:
@@ -199,3 +201,20 @@ def get_lightrag_queue() -> LightRAGQueue:
     if _lightrag_queue is None:
         _lightrag_queue = LightRAGQueue()
     return _lightrag_queue
+
+
+def get_batch_service() -> BatchService:
+    """Get batch service singleton.
+
+    Returns:
+        BatchService instance
+    """
+    global _batch_service
+    if _batch_service is None:
+        _batch_service = BatchService(
+            document_service=get_document_service(),
+            lightrag_queue=get_lightrag_queue(),
+            neo4j_client=get_neo4j_client(),
+            metadata_schema=get_metadata_schema(),
+        )
+    return _batch_service

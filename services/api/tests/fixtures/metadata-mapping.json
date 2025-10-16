@@ -1,0 +1,23 @@
+{
+  "test_doc_0.txt": {
+    "author": "John Doe",
+    "department": "Engineering",
+    "date_created": "2025-10-16",
+    "tags": ["technical", "api"],
+    "category": "specification"
+  },
+  "test_doc_1.txt": {
+    "author": "Jane Smith",
+    "department": "Marketing",
+    "date_created": "2025-10-15",
+    "tags": ["marketing", "campaign"],
+    "category": "report"
+  },
+  "test_doc_2.txt": {
+    "author": "Bob Johnson",
+    "department": "HR",
+    "date_created": "2025-10-14",
+    "tags": ["hr", "policy"],
+    "category": "manual"
+  }
+}

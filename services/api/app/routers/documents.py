@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Resp
 
 from app.config import settings
 from app.dependencies import (
+    get_batch_service,
     get_document_service,
     get_lightrag_queue,
     get_metadata_schema,
@@ -16,8 +17,10 @@ from app.dependencies import (
     validate_document_metadata,
 )
 from app.middleware.rate_limiter import InMemoryRateLimiter, add_rate_limit_headers
-from app.models.responses import DocumentIngestResponse, ErrorResponse
+from app.models.responses import BatchIngestResponse, BatchStatusResponse, DocumentIngestResponse, ErrorResponse
+from app.services.batch_service import BatchService
 from app.services.document_service import DocumentService
+from app.services.metadata_mapper import MetadataMapper
 from app.services.queue_service import LightRAGQueue
 from shared.database.document_repository import create_indexes, store_document, update_document_status
 from shared.models.metadata import MetadataSchema
@@ -299,6 +302,210 @@ async def ingest_document(
                 "error": {
                     "code": "INGESTION_FAILED",
                     "message": f"Document ingestion failed: {str(e)}",
+                }
+            },
+        )
+
+
+@router.post(
+    "/ingest/batch",
+    response_model=BatchIngestResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        202: {"description": "Batch ingestion started"},
+        400: {"model": ErrorResponse, "description": "Invalid request (batch too large)"},
+        401: {"model": ErrorResponse, "description": "Missing or invalid API key"},
+        422: {"model": ErrorResponse, "description": "Invalid metadata mapping"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
+    summary="Batch ingest documents",
+    description="""
+    Upload multiple documents in a single batch operation.
+
+    **Batch Limit:** Maximum 100 files per batch
+
+    **Metadata Mapping:** Optional CSV or JSON file mapping filenames to metadata
+
+    **Process:**
+    1. Validates batch size (max 100 files)
+    2. Parses optional metadata mapping file
+    3. Starts background batch processing
+    4. Returns batch_id immediately for status tracking
+    """,
+)
+async def batch_ingest_documents(
+    request: Request,
+    response: Response,
+    files: Annotated[List[UploadFile], File(description="List of document files to ingest")],
+    metadata_mapping: Annotated[Optional[UploadFile], File(description="CSV or JSON metadata mapping")] = None,
+    rate_limiter: InMemoryRateLimiter = Depends(get_rate_limiter),
+    batch_service: BatchService = Depends(get_batch_service),
+) -> BatchIngestResponse:
+    """Batch ingest documents.
+
+    Args:
+        request: FastAPI request
+        response: FastAPI response
+        files: List of uploaded files
+        metadata_mapping: Optional metadata mapping file (CSV or JSON)
+        rate_limiter: Rate limiter instance
+        batch_service: Batch service instance
+
+    Returns:
+        BatchIngestResponse with batch_id
+    """
+    # Check rate limit
+    await rate_limiter.check_rate_limit(request)
+
+    # Validate batch size (max 100 files)
+    MAX_BATCH_SIZE = 100
+    if len(files) > MAX_BATCH_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": {
+                    "code": "BATCH_TOO_LARGE",
+                    "message": f"Batch exceeds maximum size of {MAX_BATCH_SIZE} files. Uploaded: {len(files)} files",
+                }
+            },
+        )
+
+    # Parse metadata mapping if provided
+    metadata_map: Dict[str, Dict[str, Any]] = {}
+    if metadata_mapping:
+        try:
+            metadata_map = await MetadataMapper.parse_metadata_mapping(metadata_mapping)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "error": {
+                        "code": "INVALID_METADATA_MAPPING",
+                        "message": str(e),
+                    }
+                },
+            )
+
+    try:
+        # Start batch processing
+        batch_id = await batch_service.start_batch(
+            files=files,
+            metadata_mapping=metadata_map,
+        )
+
+        # Build response
+        response_data = BatchIngestResponse(
+            batch_id=str(batch_id),
+            total_documents=len(files),
+            status="in_progress",
+            message="Batch ingestion started. Use batch_id to check status",
+        )
+
+        # Add rate limit headers
+        add_rate_limit_headers(response, request)
+
+        return response_data
+
+    except Exception as e:
+        logger.error(
+            "batch_ingestion_error",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "code": "BATCH_INGESTION_FAILED",
+                    "message": f"Batch ingestion failed: {str(e)}",
+                }
+            },
+        )
+
+
+@router.get(
+    "/ingest/batch/{batch_id}/status",
+    response_model=BatchStatusResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Batch status retrieved"},
+        404: {"model": ErrorResponse, "description": "Batch not found"},
+    },
+    summary="Get batch ingestion status",
+    description="""
+    Get the current status of a batch ingestion operation.
+
+    **Status Values:**
+    - `in_progress`: Batch is currently being processed
+    - `completed`: All documents processed successfully
+    - `partial_failure`: Some documents failed, but at least one succeeded
+    - `failed`: All documents failed
+    """,
+)
+async def get_batch_status(
+    batch_id: str,
+    batch_service: BatchService = Depends(get_batch_service),
+) -> BatchStatusResponse:
+    """Get batch ingestion status.
+
+    Args:
+        batch_id: Batch UUID
+        batch_service: Batch service instance
+
+    Returns:
+        BatchStatusResponse with current status
+    """
+    try:
+        from uuid import UUID
+
+        # Convert string to UUID
+        batch_uuid = UUID(batch_id)
+
+        # Get batch status
+        batch_status = batch_service.get_batch_status(batch_uuid)
+
+        # Build response
+        return BatchStatusResponse(
+            batch_id=str(batch_status.batch_id),
+            total_documents=batch_status.total_documents,
+            processed_count=batch_status.processed_count,
+            failed_count=batch_status.failed_count,
+            status=batch_status.status,
+            failed_documents=[
+                {"filename": doc["filename"], "error": doc["error"]}
+                for doc in batch_status.failed_documents
+            ],
+            completed_at=batch_status.completed_at,
+            processing_time_seconds=batch_status.processing_time_seconds,
+        )
+
+    except ValueError as e:
+        # Batch not found or invalid UUID
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": {
+                    "code": "BATCH_NOT_FOUND",
+                    "message": str(e),
+                }
+            },
+        )
+
+    except Exception as e:
+        logger.error(
+            "batch_status_error",
+            batch_id=batch_id,
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "code": "BATCH_STATUS_FAILED",
+                    "message": f"Failed to retrieve batch status: {str(e)}",
                 }
             },
         )

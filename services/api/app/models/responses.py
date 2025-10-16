@@ -75,3 +75,70 @@ class ErrorResponse(BaseModel):
                 }
             }
         }
+
+
+class FailedDocument(BaseModel):
+    """Failed document information."""
+
+    filename: str = Field(..., description="Filename that failed")
+    error: str = Field(..., description="Error message")
+
+
+class BatchIngestResponse(BaseModel):
+    """Response for batch ingestion endpoint."""
+
+    batch_id: str = Field(..., description="UUID of the batch", alias="batchId")
+    total_documents: int = Field(..., description="Total number of documents in batch", alias="totalDocuments")
+    status: str = Field(..., description="Batch status: 'in_progress'")
+    message: str = Field(..., description="Status message")
+
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "batchId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                "totalDocuments": 50,
+                "status": "in_progress",
+                "message": "Batch ingestion started. Use batch_id to check status",
+            }
+        }
+
+
+class BatchStatusResponse(BaseModel):
+    """Response for batch status endpoint."""
+
+    batch_id: str = Field(..., description="UUID of the batch", alias="batchId")
+    total_documents: int = Field(..., description="Total number of documents", alias="totalDocuments")
+    processed_count: int = Field(..., description="Number of successfully processed documents", alias="processedCount")
+    failed_count: int = Field(..., description="Number of failed documents", alias="failedCount")
+    status: str = Field(
+        ..., description="Batch status: 'in_progress', 'completed', 'partial_failure'", alias="status"
+    )
+    failed_documents: List[FailedDocument] = Field(
+        default_factory=list, description="List of failed documents", alias="failedDocuments"
+    )
+    completed_at: Optional[str] = Field(default=None, description="ISO 8601 completion time", alias="completedAt")
+    processing_time_seconds: Optional[float] = Field(
+        default=None, description="Total processing time in seconds", alias="processingTimeSeconds"
+    )
+
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "batchId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                "totalDocuments": 50,
+                "processedCount": 48,
+                "failedCount": 2,
+                "status": "completed",
+                "failedDocuments": [
+                    {"filename": "corrupted.pdf", "error": "Failed to parse PDF: File is corrupted"},
+                    {
+                        "filename": "invalid.txt",
+                        "error": "Metadata validation failed: Missing required field 'author'",
+                    },
+                ],
+                "completedAt": "2025-10-16T14:35:00Z",
+                "processingTimeSeconds": 120.5,
+            }
+        }

@@ -1,0 +1,6 @@
+filename,author,department,date_created,tags,category
+test_doc_0.txt,John Doe,Engineering,2025-10-16,"technical,api",specification
+test_doc_1.txt,Jane Smith,Marketing,2025-10-15,"marketing,campaign",report
+test_doc_2.txt,Bob Johnson,HR,2025-10-14,"hr,policy",manual
+test_doc_3.txt,Alice Brown,Engineering,2025-10-13,"technical,docs",guide
+test_doc_4.txt,Charlie Davis,Sales,2025-10-12,"sales,presentation",pitch
