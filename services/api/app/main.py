@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.routers import config, documents, health
-from app.middleware import RequestLoggingMiddleware
+# from app.middleware import RequestLoggingMiddleware  # TODO: Implement if needed
 from shared.utils.logging import configure_logging, get_logger
 
 # Version
@@ -71,7 +71,7 @@ app.add_middleware(
 )
 
 # Request logging middleware
-app.add_middleware(RequestLoggingMiddleware)
+# app.add_middleware(RequestLoggingMiddleware)  # TODO: Implement if needed
 
 # Include routers
 app.include_router(health.router, tags=["health"])

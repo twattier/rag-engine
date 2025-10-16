@@ -108,3 +108,4 @@ benchmarks/*.csv
 
 #can't send too large file
 large-file.*
+sample-data

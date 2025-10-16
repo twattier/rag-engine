@@ -9,7 +9,7 @@ from uuid import uuid4
 import httpx
 from fastapi import UploadFile
 
-from services.api.app.config import Settings
+from app.config import Settings
 from shared.utils.logging import get_logger
 
 logger = get_logger(__name__)

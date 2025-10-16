@@ -142,3 +142,149 @@ class BatchStatusResponse(BaseModel):
                 "processingTimeSeconds": 120.5,
             }
         }
+
+
+class DocumentListItem(BaseModel):
+    """Document list item for paginated responses."""
+
+    document_id: str = Field(..., description="UUID of the document", alias="documentId")
+    filename: str = Field(..., description="Original filename")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Document metadata")
+    ingestion_date: str = Field(..., description="ISO 8601 datetime of ingestion", alias="ingestionDate")
+    status: str = Field(..., description="Document status: 'parsing', 'queued', 'indexed', 'failed'")
+    size_bytes: int = Field(..., description="File size in bytes", alias="sizeBytes")
+
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "documentId": "550e8400-e29b-41d4-a716-446655440000",
+                "filename": "technical-spec.pdf",
+                "metadata": {
+                    "author": "John Doe",
+                    "department": "engineering",
+                    "tags": ["technical", "api"],
+                },
+                "ingestionDate": "2025-10-16T14:30:00Z",
+                "status": "indexed",
+                "sizeBytes": 1048576,
+            }
+        }
+
+
+class PaginationMetadata(BaseModel):
+    """Pagination metadata for list responses."""
+
+    total_count: int = Field(..., description="Total number of matching documents", alias="totalCount")
+    limit: int = Field(..., description="Number of documents per page")
+    offset: int = Field(..., description="Pagination offset")
+    has_more: bool = Field(..., description="Whether more documents are available", alias="hasMore")
+
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "totalCount": 150,
+                "limit": 50,
+                "offset": 0,
+                "hasMore": True,
+            }
+        }
+
+
+class DocumentListResponse(BaseModel):
+    """Response for document list endpoint."""
+
+    documents: List[DocumentListItem] = Field(..., description="List of documents")
+    pagination: PaginationMetadata = Field(..., description="Pagination metadata")
+
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "documents": [
+                    {
+                        "documentId": "550e8400-e29b-41d4-a716-446655440000",
+                        "filename": "technical-spec.pdf",
+                        "metadata": {
+                            "author": "John Doe",
+                            "department": "engineering",
+                            "tags": ["technical", "api"],
+                        },
+                        "ingestionDate": "2025-10-16T14:30:00Z",
+                        "status": "indexed",
+                        "sizeBytes": 1048576,
+                    }
+                ],
+                "pagination": {
+                    "totalCount": 150,
+                    "limit": 50,
+                    "offset": 0,
+                    "hasMore": True,
+                },
+            }
+        }
+
+
+class ParsedContentPreview(BaseModel):
+    """Parsed content preview for document details."""
+
+    format: Optional[str] = Field(None, description="File format (pdf, docx, etc.)")
+    page_count: Optional[int] = Field(None, description="Number of pages", alias="pageCount")
+    text_blocks: Optional[int] = Field(None, description="Number of text blocks", alias="textBlocks")
+    images: Optional[int] = Field(None, description="Number of images")
+    tables: Optional[int] = Field(None, description="Number of tables")
+    preview: str = Field(..., description="First 500 characters of content")
+
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "format": "pdf",
+                "pageCount": 25,
+                "textBlocks": 120,
+                "images": 5,
+                "tables": 3,
+                "preview": "This technical specification document describes the API architecture...",
+            }
+        }
+
+
+class DocumentDetail(BaseModel):
+    """Detailed document response."""
+
+    document_id: str = Field(..., description="UUID of the document", alias="documentId")
+    filename: str = Field(..., description="Original filename")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Document metadata")
+    ingestion_date: str = Field(..., description="ISO 8601 datetime of ingestion", alias="ingestionDate")
+    status: str = Field(..., description="Document status: 'parsing', 'queued', 'indexed', 'failed'")
+    size_bytes: int = Field(..., description="File size in bytes", alias="sizeBytes")
+    parsed_content: Optional[ParsedContentPreview] = Field(
+        None, description="Parsed content preview", alias="parsedContent"
+    )
+
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "documentId": "550e8400-e29b-41d4-a716-446655440000",
+                "filename": "technical-spec.pdf",
+                "metadata": {
+                    "author": "John Doe",
+                    "department": "engineering",
+                    "tags": ["technical", "api"],
+                    "date_created": "2025-10-15",
+                },
+                "ingestionDate": "2025-10-16T14:30:00Z",
+                "status": "indexed",
+                "sizeBytes": 1048576,
+                "parsedContent": {
+                    "format": "pdf",
+                    "pageCount": 25,
+                    "textBlocks": 120,
+                    "images": 5,
+                    "tables": 3,
+                    "preview": "This technical specification document describes the API architecture...",
+                },
+            }
+        }

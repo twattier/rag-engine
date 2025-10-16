@@ -17,12 +17,30 @@ from app.dependencies import (
     validate_document_metadata,
 )
 from app.middleware.rate_limiter import InMemoryRateLimiter, add_rate_limit_headers
-from app.models.responses import BatchIngestResponse, BatchStatusResponse, DocumentIngestResponse, ErrorResponse
+from app.models.responses import (
+    BatchIngestResponse,
+    BatchStatusResponse,
+    DocumentDetail,
+    DocumentIngestResponse,
+    DocumentListItem,
+    DocumentListResponse,
+    ErrorResponse,
+    PaginationMetadata,
+    ParsedContentPreview,
+)
 from app.services.batch_service import BatchService
 from app.services.document_service import DocumentService
 from app.services.metadata_mapper import MetadataMapper
 from app.services.queue_service import LightRAGQueue
-from shared.database.document_repository import create_indexes, store_document, update_document_status
+from shared.database.document_repository import (
+    count_documents,
+    create_indexes,
+    delete_document,
+    get_document_by_id,
+    list_documents,
+    store_document,
+    update_document_status,
+)
 from shared.models.metadata import MetadataSchema
 from shared.utils.logging import get_logger
 from shared.utils.neo4j_client import Neo4jClient
@@ -506,6 +524,313 @@ async def get_batch_status(
                 "error": {
                     "code": "BATCH_STATUS_FAILED",
                     "message": f"Failed to retrieve batch status: {str(e)}",
+                }
+            },
+        )
+
+
+@router.get(
+    "",
+    response_model=DocumentListResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Documents retrieved successfully"},
+        401: {"model": ErrorResponse, "description": "Missing or invalid API key"},
+    },
+    summary="List documents with filtering and pagination",
+    description="""
+    Retrieve a paginated list of ingested documents with optional filtering.
+
+    **Pagination:**
+    - Default limit: 50 documents
+    - Maximum limit: 500 documents
+    - Use offset for pagination
+
+    **Filters:**
+    - status: Filter by status (parsing, queued, indexed, failed)
+    - ingestion_date_from: ISO 8601 date (e.g., 2025-10-01)
+    - ingestion_date_to: ISO 8601 date (e.g., 2025-10-16)
+    - Metadata fields: Filter by any custom metadata field (e.g., department=engineering)
+    """,
+)
+async def list_all_documents(
+    limit: int = 50,
+    offset: int = 0,
+    doc_status: Optional[str] = None,
+    ingestion_date_from: Optional[str] = None,
+    ingestion_date_to: Optional[str] = None,
+    neo4j_client: Neo4jClient = Depends(get_neo4j_client),
+    request: Request = None,
+) -> DocumentListResponse:
+    """List documents with filtering and pagination.
+
+    Args:
+        limit: Number of documents per page (default: 50, max: 500)
+        offset: int = Pagination offset (default: 0)
+        doc_status: Filter by document status
+        ingestion_date_from: Filter by date range start (ISO 8601)
+        ingestion_date_to: Filter by date range end (ISO 8601)
+        neo4j_client: Neo4j client instance
+        request: FastAPI request (for extracting metadata filters)
+
+    Returns:
+        DocumentListResponse with paginated documents
+    """
+    # Validate limit
+    MAX_LIMIT = 500
+    if limit > MAX_LIMIT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": {
+                    "code": "INVALID_LIMIT",
+                    "message": f"Limit exceeds maximum of {MAX_LIMIT}. Provided: {limit}",
+                }
+            },
+        )
+
+    # Build filters dict
+    filters = {}
+
+    if doc_status:
+        filters["status"] = doc_status
+
+    if ingestion_date_from:
+        filters["ingestion_date_from"] = ingestion_date_from
+
+    if ingestion_date_to:
+        filters["ingestion_date_to"] = ingestion_date_to
+
+    # Extract metadata filters from query parameters
+    # (exclude known pagination/filter params)
+    known_params = {"limit", "offset", "doc_status", "ingestion_date_from", "ingestion_date_to"}
+    if request:
+        for key, value in request.query_params.items():
+            if key not in known_params:
+                filters[key] = value
+
+    try:
+        with neo4j_client.session() as session:
+            # Get documents
+            documents_data = await list_documents(
+                session=session,
+                filters=filters,
+                limit=limit,
+                offset=offset,
+            )
+
+            # Get total count
+            total_count = await count_documents(
+                session=session,
+                filters=filters,
+            )
+
+        # Build response
+        document_items = [
+            DocumentListItem(
+                document_id=doc["document_id"],
+                filename=doc["filename"],
+                metadata=doc["metadata"] or {},
+                ingestion_date=doc["ingestion_date"].isoformat() if doc["ingestion_date"] else "",
+                status=doc["status"],
+                size_bytes=doc["size_bytes"],
+            )
+            for doc in documents_data
+        ]
+
+        has_more = (offset + len(documents_data)) < total_count
+
+        pagination = PaginationMetadata(
+            total_count=total_count,
+            limit=limit,
+            offset=offset,
+            has_more=has_more,
+        )
+
+        logger.info(
+            "documents_listed",
+            count=len(document_items),
+            total_count=total_count,
+            limit=limit,
+            offset=offset,
+        )
+
+        return DocumentListResponse(
+            documents=document_items,
+            pagination=pagination,
+        )
+
+    except Exception as e:
+        logger.error(
+            "list_documents_error",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "code": "LIST_DOCUMENTS_FAILED",
+                    "message": f"Failed to list documents: {str(e)}",
+                }
+            },
+        )
+
+
+@router.get(
+    "/{document_id}",
+    response_model=DocumentDetail,
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Document details retrieved"},
+        404: {"model": ErrorResponse, "description": "Document not found"},
+        401: {"model": ErrorResponse, "description": "Missing or invalid API key"},
+    },
+    summary="Get document details",
+    description="""
+    Retrieve full details of a specific document including parsed content preview.
+
+    Returns document metadata, ingestion status, and the first 500 characters of parsed content.
+    """,
+)
+async def get_document_details(
+    document_id: str,
+    neo4j_client: Neo4jClient = Depends(get_neo4j_client),
+) -> DocumentDetail:
+    """Get document details by ID.
+
+    Args:
+        document_id: Document UUID
+        neo4j_client: Neo4j client instance
+
+    Returns:
+        DocumentDetail with parsed content preview
+
+    Raises:
+        HTTPException: 404 if document not found
+    """
+    try:
+        with neo4j_client.session() as session:
+            document_data = await get_document_by_id(
+                session=session,
+                document_id=document_id,
+            )
+
+        if not document_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "error": {
+                        "code": "DOCUMENT_NOT_FOUND",
+                        "message": f"Document with ID {document_id} not found",
+                    }
+                },
+            )
+
+        # Build parsed content preview
+        parsed_content = None
+        if document_data.get("parsed_content"):
+            pc = document_data["parsed_content"]
+            parsed_content = ParsedContentPreview(
+                format=pc.get("format"),
+                page_count=pc.get("page_count"),
+                text_blocks=pc.get("text_blocks"),
+                images=pc.get("images"),
+                tables=pc.get("tables"),
+                preview=pc.get("preview", ""),
+            )
+
+        # Build response
+        document_detail = DocumentDetail(
+            document_id=document_data["document_id"],
+            filename=document_data["filename"],
+            metadata=document_data["metadata"] or {},
+            ingestion_date=document_data["ingestion_date"].isoformat() if document_data["ingestion_date"] else "",
+            status=document_data["status"],
+            size_bytes=document_data["size_bytes"],
+            parsed_content=parsed_content,
+        )
+
+        logger.info("document_details_retrieved", document_id=document_id)
+
+        return document_detail
+
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+
+    except Exception as e:
+        logger.error(
+            "get_document_details_error",
+            document_id=document_id,
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "code": "GET_DOCUMENT_FAILED",
+                    "message": f"Failed to retrieve document: {str(e)}",
+                }
+            },
+        )
+
+
+@router.delete(
+    "/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        204: {"description": "Document deleted successfully"},
+        401: {"model": ErrorResponse, "description": "Missing or invalid API key"},
+    },
+    summary="Delete document",
+    description="""
+    Delete a document and its associated parsed content from Neo4j.
+
+    **Idempotency:** This operation is idempotent. Deleting a non-existent document returns 204 (no error).
+    """,
+)
+async def delete_document_by_id(
+    document_id: str,
+    neo4j_client: Neo4jClient = Depends(get_neo4j_client),
+) -> Response:
+    """Delete document by ID (idempotent).
+
+    Args:
+        document_id: Document UUID
+        neo4j_client: Neo4j client instance
+
+    Returns:
+        204 No Content
+    """
+    try:
+        with neo4j_client.session() as session:
+            await delete_document(
+                session=session,
+                document_id=document_id,
+            )
+
+        logger.info("document_deleted", document_id=document_id)
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    except Exception as e:
+        logger.error(
+            "delete_document_error",
+            document_id=document_id,
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "code": "DELETE_DOCUMENT_FAILED",
+                    "message": f"Failed to delete document: {str(e)}",
                 }
             },
         )
