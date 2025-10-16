@@ -214,3 +214,116 @@ def minimal_valid_metadata() -> dict:
     return {
         "author": "Test Author",
     }
+
+
+# ============ Document Ingestion Testing Fixtures ============
+
+import io
+
+
+@pytest.fixture
+def sample_txt_file() -> io.BytesIO:
+    """Create a sample text file for testing.
+
+    Returns:
+        BytesIO object with text content
+    """
+    content = b"This is a sample text document for testing.\n\nMultiple paragraphs included.\n"
+    return io.BytesIO(content)
+
+
+@pytest.fixture
+def sample_pdf_bytes() -> bytes:
+    """Create sample PDF bytes for testing.
+
+    Returns:
+        Bytes representing a minimal PDF
+    """
+    # Minimal valid PDF content
+    pdf_content = b"""%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 4 0 R
+/Resources <<
+/Font <<
+/F1 5 0 R
+>>
+>>
+>>
+endobj
+4 0 obj
+<<
+/Length 44
+>>
+stream
+BT
+/F1 12 Tf
+100 700 Td
+(Test PDF) Tj
+ET
+endstream
+endobj
+5 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+endobj
+xref
+0 6
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000262 00000 n
+0000000356 00000 n
+trailer
+<<
+/Size 6
+/Root 1 0 R
+>>
+startxref
+447
+%%EOF
+"""
+    return pdf_content
+
+
+@pytest.fixture
+def large_file_bytes() -> bytes:
+    """Create a large file (>50MB) for testing size limits.
+
+    Returns:
+        Bytes exceeding the MAX_FILE_SIZE limit
+    """
+    # Create 60MB file
+    return b"X" * (60 * 1024 * 1024)
+
+
+@pytest.fixture
+def valid_metadata_json() -> str:
+    """Create valid metadata as JSON string for API testing.
+
+    Returns:
+        JSON string with valid metadata
+    """
+    import json
+
+    return json.dumps({"author": "Test Author", "version": 1, "tags": ["test", "api"]})

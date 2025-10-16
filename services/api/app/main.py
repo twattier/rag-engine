@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.config import settings
-from app.routers import health
+from app.routers import documents, health
 from app.middleware import RequestLoggingMiddleware
 from shared.utils.logging import configure_logging, get_logger
 
@@ -75,6 +75,7 @@ app.add_middleware(RequestLoggingMiddleware)
 
 # Include routers
 app.include_router(health.router, tags=["health"])
+app.include_router(documents.router)
 
 
 @app.get("/", tags=["root"])

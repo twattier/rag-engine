@@ -40,9 +40,21 @@ class Settings(BaseSettings):
     # Metadata Configuration
     METADATA_SCHEMA_PATH: str = "/app/config/metadata-schema.yaml"
 
+    # Document Ingestion Configuration
+    MAX_FILE_SIZE_MB: int = 50
+    RATE_LIMIT_REQUESTS: int = 10
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
+
+    # Service URLs
+    RAG_ANYTHING_URL: str = "http://rag-anything:8000"
+
     def get_cors_origins_list(self) -> list[str]:
         """Get CORS origins as a list."""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+
+    def get_max_file_size_bytes(self) -> int:
+        """Get maximum file size in bytes."""
+        return self.MAX_FILE_SIZE_MB * 1024 * 1024
 
     model_config = SettingsConfigDict(
         env_file=".env",

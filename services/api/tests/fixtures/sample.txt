@@ -1,0 +1,7 @@
+This is a sample text document for testing document ingestion.
+
+It contains multiple paragraphs and some structured content.
+
+Testing the RAG Engine API is important for ensuring reliability and correctness.
+
+End of sample document.
