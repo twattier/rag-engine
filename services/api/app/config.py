@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     # Metadata Configuration
     METADATA_SCHEMA_PATH: str = "/app/config/metadata-schema.yaml"
 
+    # Entity Types Configuration
+    ENTITY_TYPES_CONFIG_PATH: str = "/app/config/entity-types.yaml"
+
     # Document Ingestion Configuration
     MAX_FILE_SIZE_MB: int = 50
     RATE_LIMIT_REQUESTS: int = 10

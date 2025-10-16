@@ -1,0 +1,91 @@
+# Entity Types Configuration for LightRAG Knowledge Graph Construction
+#
+# This configuration file defines the entity types that LightRAG will use during
+# entity extraction and graph construction. Entity types guide the LLM to extract
+# relevant entities based on your knowledge domain.
+#
+# Structure:
+#   entity_types:
+#     - type_name: <lowercase_no_spaces>
+#       description: "<human-readable description>"
+#       examples:
+#         - "<example 1>"
+#         - "<example 2>"
+#
+# Customization:
+# - Add domain-specific entity types using POST /api/v1/config/entity-types
+# - Or edit this file directly and restart the service
+# - See docs/entity-configuration.md for domain-specific examples
+
+entity_types:
+  - type_name: person
+    description: "Individual people, including names, roles, and titles"
+    examples:
+      - "John Doe"
+      - "Dr. Jane Smith"
+      - "CEO Bob Johnson"
+      - "Professor Alice Williams"
+      - "Software Engineer Maria Garcia"
+
+  - type_name: organization
+    description: "Companies, institutions, agencies, and groups"
+    examples:
+      - "Microsoft Corporation"
+      - "Stanford University"
+      - "World Health Organization"
+      - "Acme Inc."
+      - "Department of Energy"
+
+  - type_name: concept
+    description: "Abstract ideas, theories, methodologies, and principles"
+    examples:
+      - "Machine Learning"
+      - "Agile Methodology"
+      - "Supply Chain Management"
+      - "Quantum Computing"
+      - "Six Sigma"
+
+  - type_name: product
+    description: "Products, services, tools, and offerings"
+    examples:
+      - "iPhone 15"
+      - "Microsoft Azure"
+      - "Adobe Photoshop"
+      - "Tesla Model 3"
+      - "AWS Lambda"
+
+  - type_name: location
+    description: "Geographic locations, places, addresses, and regions"
+    examples:
+      - "San Francisco, CA"
+      - "Building A, Floor 3"
+      - "United States"
+      - "Silicon Valley"
+      - "123 Main Street"
+
+  - type_name: technology
+    description: "Technologies, frameworks, programming languages, and technical tools"
+    examples:
+      - "Python"
+      - "React.js"
+      - "Docker"
+      - "Neo4j"
+      - "Kubernetes"
+
+  - type_name: event
+    description: "Events, meetings, conferences, and significant occurrences"
+    examples:
+      - "Project Kickoff Meeting"
+      - "AWS re:Invent 2025"
+      - "Q4 Budget Review"
+      - "Product Launch"
+      - "Annual Performance Review"
+
+  - type_name: document
+    description: "Documents, reports, policies, and written materials"
+    examples:
+      - "Employee Handbook"
+      - "API Documentation"
+      - "Privacy Policy"
+      - "Q3 Financial Report"
+      - "Technical Specification"

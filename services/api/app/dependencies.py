@@ -15,7 +15,9 @@ from app.middleware.rate_limiter import InMemoryRateLimiter
 from app.services.batch_service import BatchService
 from app.services.document_service import DocumentService
 from app.services.queue_service import LightRAGQueue
+from shared.config.entity_loader import load_entity_types
 from shared.config.metadata_loader import load_metadata_schema
+from shared.models.entity_types import EntityTypesConfig
 from shared.models.metadata import MetadataSchema
 from shared.utils.neo4j_client import Neo4jClient, parse_neo4j_auth
 
@@ -96,6 +98,40 @@ def get_metadata_schema() -> MetadataSchema:
             detail={
                 "error": {
                     "code": "INVALID_SCHEMA",
+                    "message": str(e),
+                }
+            },
+        )
+
+
+@lru_cache()
+def get_entity_types_config() -> EntityTypesConfig:
+    """Load and cache entity types configuration.
+
+    Returns:
+        Loaded EntityTypesConfig object
+
+    Raises:
+        HTTPException: If configuration file cannot be loaded
+    """
+    try:
+        return load_entity_types(settings.ENTITY_TYPES_CONFIG_PATH)
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "code": "ENTITY_CONFIG_NOT_FOUND",
+                    "message": str(e),
+                }
+            },
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "code": "INVALID_ENTITY_CONFIG",
                     "message": str(e),
                 }
             },
