@@ -46,10 +46,39 @@ cp .env.example .env
 
 # 3. Deploy RAG Engine
 docker-compose up -d
-
-# 4. Verify deployment
-curl http://localhost:8000/health
 ```
+
+### Verify Deployment
+
+After starting services, verify everything is working:
+
+```bash
+# Automated validation (recommended)
+./scripts/validate-deployment.sh
+```
+
+**Expected output:**
+```
+✅ RAG Engine deployed successfully!
+
+Access points:
+  - API Documentation: http://localhost:8000/docs
+  - API Health Check:  http://localhost:8000/health
+  - Neo4j Browser:     http://localhost:7474
+```
+
+**Manual verification:**
+```bash
+# Check health
+curl http://localhost:8000/health
+
+# Check services
+docker compose ps
+```
+
+**Troubleshooting:** If validation fails, see:
+- [Deployment Guide](docs/deployment-guide.md)
+- [Troubleshooting Guide](docs/troubleshooting.md)
 
 ### First Query
 
