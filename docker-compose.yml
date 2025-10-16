@@ -80,13 +80,25 @@ services:
       context: ./services/rag-anything
       dockerfile: Dockerfile
     container_name: rag-engine-rag-anything
+    ports:
+      - "${RAG_ANYTHING_PORT:-8001}:8001"
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      - HOST=0.0.0.0
+      - PORT=8001
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE_MB:-50}000000
+      - UPLOAD_DIR=/tmp/rag-anything-uploads
     volumes:
       - ./services/rag-anything:/app
       - ./shared:/app/shared
     networks:
       - rag-engine-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   litellm:
     image: ghcr.io/berriai/litellm:main-latest
