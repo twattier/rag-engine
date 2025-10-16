@@ -1,0 +1,36 @@
+{
+  "formats_tested": [
+    "Plain Text",
+    "Markdown",
+    "CSV",
+    "Word DOCX",
+    "PowerPoint PPTX",
+    "PDF"
+  ],
+  "successful_formats": [
+    "Plain Text",
+    "Markdown",
+    "CSV",
+    "Word DOCX",
+    "PowerPoint PPTX",
+    "PDF"
+  ],
+  "failed_formats": [],
+  "parsing_times": {
+    "Plain Text": 4.76120003440883e-05,
+    "Markdown": 3.0851999326841906e-05,
+    "CSV": 0.0027866229975188617,
+    "Word DOCX": 0.01432326200301759,
+    "PowerPoint PPTX": 0.00849003799885395,
+    "PDF": 0.005591230001300573
+  },
+  "errors": {},
+  "output_samples": {
+    "Plain Text": "Climate Change Science: A Research Abstract\n\nThe accelerating impact of anthropogenic climate change represents one of the most significant challenges facing humanity in the 21st century. Comprehensiv...",
+    "Markdown": "# Climate Change Impact Report 2023\n\n## Executive Summary\n\nThis report synthesizes current scientific understanding of climate change impacts, mitigation strategies, and adaptation requirements for th...",
+    "CSV": "   Year  Global_Temp_Anomaly_C  CO2_ppm  Arctic_Ice_Extent_Million_km2  Sea_Level_Rise_mm\n0  1880                  -0.16      280                            NaN                  0\n1  1900                  -0.08      295                            NaN                  0\n2  1920                  -0.27      303                            NaN                 20\n3  1940                   0.13      310                            NaN                 35\n4  1960                  -0.03      317                            NaN                 50",
+    "Word DOCX": "Climate Change Mitigation Strategies\n1. Introduction\nClimate change mitigation encompasses actions to limit the magnitude and rate of long-term climate change. This document outlines evidence-based st...",
+    "PowerPoint PPTX": "Climate Change Science\nUnderstanding Global Warming Trends and Impacts\nOctober 2023\nPresentation Overview\nKey topics covered in this presentation:\nTemperature trends and observations\nCarbon dioxide co...",
+    "PDF": "Climate Change: Temperature and CO\u25a0\nCorrelation Analysis\nAbstract\nThis research paper examines the correlation between atmospheric carbon dioxide concentrations and\nglobal temperature anomalies over t..."
+  }
+}

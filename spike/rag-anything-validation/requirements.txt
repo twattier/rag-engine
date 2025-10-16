@@ -1,0 +1,14 @@
+# RAG-Anything Spike Requirements
+# Python 3.11 (project standard, though RAG-Anything lists 3.10)
+
+# Core package with all features
+raganything[all]
+
+# Document generation libraries for sample creation
+reportlab>=4.0.0
+python-docx>=1.0.0
+python-pptx>=0.6.0
+
+# Additional testing utilities
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
