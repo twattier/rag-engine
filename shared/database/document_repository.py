@@ -459,3 +459,42 @@ async def delete_document(session: Session, document_id: str) -> None:
     session.run(query, params)
 
     logger.info("document_deleted", document_id=document_id)
+
+
+async def update_document_metadata(
+    session: Session,
+    document_id: str,
+    metadata: Dict[str, Any],
+) -> None:
+    """Update document metadata fields.
+
+    Args:
+        session: Neo4j session
+        document_id: Document UUID
+        metadata: New metadata dictionary to replace existing metadata
+
+    Raises:
+        Exception: If document not found
+    """
+    query = """
+    MATCH (d:Document {id: $document_id})
+    SET d.metadata = $metadata
+    RETURN d.id AS document_id
+    """
+
+    params = {
+        "document_id": document_id,
+        "metadata": metadata,
+    }
+
+    result = session.run(query, params)
+    record = result.single()
+
+    if not record:
+        raise Exception(f"Document not found: {document_id}")
+
+    logger.info(
+        "document_metadata_updated",
+        document_id=document_id,
+        metadata_keys=list(metadata.keys()),
+    )

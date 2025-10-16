@@ -90,3 +90,31 @@ def validate_metadata(
         ValueError: If validation fails (missing required fields or wrong types)
     """
     return schema.validate_metadata(metadata)
+
+
+def save_metadata_schema(schema: MetadataSchema, file_path: str) -> None:
+    """Save metadata schema to YAML file.
+
+    Args:
+        schema: MetadataSchema to save
+        file_path: Path to the YAML schema file
+
+    Raises:
+        PermissionError: If file cannot be written
+        OSError: If other file I/O error occurs
+    """
+    schema_path = Path(file_path)
+
+    # Ensure parent directory exists
+    schema_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Convert schema to dict for YAML serialization
+    schema_dict = schema.model_dump()
+
+    try:
+        with schema_path.open("w") as f:
+            yaml.dump(schema_dict, f, default_flow_style=False, sort_keys=False)
+    except PermissionError:
+        raise PermissionError(f"Permission denied writing to schema file: {file_path}")
+    except OSError as e:
+        raise OSError(f"Failed to write schema file: {e}")

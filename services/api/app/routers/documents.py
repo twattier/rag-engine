@@ -14,9 +14,11 @@ from app.dependencies import (
     get_metadata_schema,
     get_neo4j_client,
     get_rate_limiter,
+    get_reindex_service,
     validate_document_metadata,
 )
 from app.middleware.rate_limiter import InMemoryRateLimiter, add_rate_limit_headers
+from app.models.requests import ReindexRequest
 from app.models.responses import (
     BatchIngestResponse,
     BatchStatusResponse,
@@ -27,11 +29,14 @@ from app.models.responses import (
     ErrorResponse,
     PaginationMetadata,
     ParsedContentPreview,
+    ReindexResponse,
+    ReindexStatusResponse,
 )
 from app.services.batch_service import BatchService
 from app.services.document_service import DocumentService
 from app.services.metadata_mapper import MetadataMapper
 from app.services.queue_service import LightRAGQueue
+from app.services.reindex_service import ReindexService
 from shared.database.document_repository import (
     count_documents,
     create_indexes,
@@ -831,6 +836,180 @@ async def delete_document_by_id(
                 "error": {
                     "code": "DELETE_DOCUMENT_FAILED",
                     "message": f"Failed to delete document: {str(e)}",
+                }
+            },
+        )
+
+
+@router.post(
+    "/reindex",
+    response_model=ReindexResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        202: {"description": "Reindexing started"},
+        401: {"model": ErrorResponse, "description": "Missing or invalid API key"},
+    },
+    summary="Trigger document reindexing",
+    description="""
+    Trigger reindexing of documents to apply new metadata schema defaults.
+
+    **Filters:** Optional filters to select specific documents for reindexing
+    """,
+)
+async def trigger_reindex(
+    reindex_request: ReindexRequest,
+    reindex_service: ReindexService = Depends(get_reindex_service),
+    metadata_schema: MetadataSchema = Depends(get_metadata_schema),
+    neo4j_client: Neo4jClient = Depends(get_neo4j_client),
+) -> ReindexResponse:
+    """Trigger document reindexing.
+
+    Args:
+        reindex_request: Reindex request with optional filters
+        reindex_service: Reindex service instance
+        metadata_schema: Current metadata schema
+        neo4j_client: Neo4j client instance
+
+    Returns:
+        ReindexResponse with job_id
+    """
+    try:
+        # Build filters from request
+        filters = {}
+        if reindex_request.filters:
+            if reindex_request.filters.document_ids:
+                filters["document_ids"] = reindex_request.filters.document_ids
+            if reindex_request.filters.ingestion_date_from:
+                filters["ingestion_date_from"] = reindex_request.filters.ingestion_date_from
+            if reindex_request.filters.ingestion_date_to:
+                filters["ingestion_date_to"] = reindex_request.filters.ingestion_date_to
+            if reindex_request.filters.status:
+                filters["status"] = reindex_request.filters.status
+            if reindex_request.filters.metadata:
+                filters.update(reindex_request.filters.metadata)
+
+        # Start reindexing
+        with neo4j_client.session() as session:
+            job_id = await reindex_service.start_reindex(
+                session=session,
+                filters=filters,
+                new_schema=metadata_schema,
+            )
+
+        # Get job status for total_documents
+        job_status = reindex_service.get_reindex_status(job_id)
+
+        return ReindexResponse(
+            reindex_job_id=str(job_id),
+            total_documents=job_status.total_documents,
+            status="in_progress",
+            message="Reindexing started. Use reindex_job_id to check status",
+        )
+
+    except Exception as e:
+        logger.error(
+            "reindex_trigger_error",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "code": "REINDEX_FAILED",
+                    "message": f"Failed to start reindexing: {str(e)}",
+                }
+            },
+        )
+
+
+@router.get(
+    "/reindex/{job_id}/status",
+    response_model=ReindexStatusResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Reindex status retrieved"},
+        404: {"model": ErrorResponse, "description": "Job not found"},
+    },
+    summary="Get reindex job status",
+    description="""
+    Get the current status of a reindexing job.
+
+    **Status Values:**
+    - `in_progress`: Reindexing in progress
+    - `completed`: Reindexing completed
+    - `failed`: Reindexing failed
+    """,
+)
+async def get_reindex_status(
+    job_id: str,
+    reindex_service: ReindexService = Depends(get_reindex_service),
+) -> ReindexStatusResponse:
+    """Get reindex job status.
+
+    Args:
+        job_id: Reindex job UUID
+        reindex_service: Reindex service instance
+
+    Returns:
+        ReindexStatusResponse with current status
+    """
+    try:
+        from uuid import UUID
+
+        # Convert string to UUID
+        job_uuid = UUID(job_id)
+
+        # Get job status
+        job_status = reindex_service.get_reindex_status(job_uuid)
+
+        if not job_status:
+            raise ValueError("Job not found")
+
+        # Build response
+        failed_docs = [
+            {"documentId": doc.document_id, "error": doc.error}
+            for doc in job_status.failed_documents
+        ]
+
+        return ReindexStatusResponse(
+            reindex_job_id=str(job_status.reindex_job_id),
+            total_documents=job_status.total_documents,
+            processed_count=job_status.processed_count,
+            failed_count=job_status.failed_count,
+            status=job_status.status,
+            estimated_completion_time=job_status.estimated_completion_time,
+            completed_at=job_status.completed_at,
+            processing_time_seconds=job_status.processing_time_seconds,
+            failed_documents=failed_docs,
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": {
+                    "code": "JOB_NOT_FOUND",
+                    "message": f"Reindex job {job_id} not found",
+                }
+            },
+        )
+
+    except Exception as e:
+        logger.error(
+            "reindex_status_error",
+            job_id=job_id,
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "code": "REINDEX_STATUS_FAILED",
+                    "message": f"Failed to retrieve reindex status: {str(e)}",
                 }
             },
         )

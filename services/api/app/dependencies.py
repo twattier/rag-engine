@@ -15,6 +15,7 @@ from app.middleware.rate_limiter import InMemoryRateLimiter
 from app.services.batch_service import BatchService
 from app.services.document_service import DocumentService
 from app.services.queue_service import LightRAGQueue
+from app.services.reindex_service import ReindexService
 from shared.config.entity_loader import load_entity_types
 from shared.config.metadata_loader import load_metadata_schema
 from shared.models.entity_types import EntityTypesConfig
@@ -178,6 +179,7 @@ _rate_limiter: InMemoryRateLimiter | None = None
 _document_service: DocumentService | None = None
 _lightrag_queue: LightRAGQueue | None = None
 _batch_service: BatchService | None = None
+_reindex_service: ReindexService | None = None
 
 
 def get_neo4j_client() -> Neo4jClient:
@@ -254,3 +256,15 @@ def get_batch_service() -> BatchService:
             metadata_schema=get_metadata_schema(),
         )
     return _batch_service
+
+
+def get_reindex_service() -> ReindexService:
+    """Get reindex service singleton.
+
+    Returns:
+        ReindexService instance
+    """
+    global _reindex_service
+    if _reindex_service is None:
+        _reindex_service = ReindexService()
+    return _reindex_service

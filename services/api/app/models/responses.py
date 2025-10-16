@@ -288,3 +288,130 @@ class DocumentDetail(BaseModel):
                 },
             }
         }
+
+
+class SchemaUpdateResponse(BaseModel):
+    """Response for metadata schema update endpoint."""
+
+    message: str = Field(..., description="Status message")
+    schema_version: str = Field(..., description="Schema version identifier", alias="schemaVersion")
+    changes_detected: bool = Field(..., description="Whether changes were detected", alias="changesDetected")
+    reindex_required: bool = Field(..., description="Whether reindexing is required", alias="reindexRequired")
+    reindex_status: str = Field(..., description="Reindex status (pending, not_required)", alias="reindexStatus")
+    added_fields: List[str] = Field(default_factory=list, description="List of added fields", alias="addedFields")
+    removed_fields: List[str] = Field(default_factory=list, description="List of removed fields", alias="removedFields")
+    modified_fields: List[str] = Field(
+        default_factory=list, description="List of modified fields", alias="modifiedFields"
+    )
+
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "message": "Metadata schema updated successfully",
+                "schemaVersion": "2.0",
+                "changesDetected": True,
+                "reindexRequired": True,
+                "reindexStatus": "pending",
+                "addedFields": ["priority"],
+                "removedFields": [],
+                "modifiedFields": [],
+            }
+        }
+
+
+class SchemaIncompatibility(BaseModel):
+    """Schema incompatibility details."""
+
+    field: str = Field(..., description="Field name with incompatibility")
+    issue: str = Field(..., description="Description of the incompatibility")
+
+
+class SchemaIncompatibilityError(BaseModel):
+    """Error response for incompatible schema changes."""
+
+    code: str = Field(default="SCHEMA_INCOMPATIBLE", description="Error code")
+    message: str = Field(..., description="Error message")
+    incompatibilities: List[SchemaIncompatibility] = Field(..., description="List of incompatibilities")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "code": "SCHEMA_INCOMPATIBLE",
+                "message": "Schema update rejected: Breaking changes detected",
+                "incompatibilities": [
+                    {"field": "author", "issue": "Cannot change required field to optional"},
+                    {"field": "date_created", "issue": "Cannot change field type from 'date' to 'string'"},
+                    {"field": "department", "issue": "Cannot remove required field"},
+                ],
+            }
+        }
+
+
+class ReindexFailedDocument(BaseModel):
+    """Failed document info for reindexing."""
+
+    document_id: str = Field(..., description="Document UUID", alias="documentId")
+    error: str = Field(..., description="Error message")
+
+    class Config:
+        populate_by_name = True
+
+
+class ReindexResponse(BaseModel):
+    """Response for reindex trigger endpoint."""
+
+    reindex_job_id: str = Field(..., description="UUID of reindex job", alias="reindexJobId")
+    total_documents: int = Field(..., description="Total documents to reindex", alias="totalDocuments")
+    status: str = Field(..., description="Job status (in_progress)")
+    message: str = Field(..., description="Status message")
+
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "reindexJobId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                "totalDocuments": 150,
+                "status": "in_progress",
+                "message": "Reindexing started. Use reindex_job_id to check status",
+            }
+        }
+
+
+class ReindexStatusResponse(BaseModel):
+    """Response for reindex status endpoint."""
+
+    reindex_job_id: str = Field(..., description="UUID of reindex job", alias="reindexJobId")
+    total_documents: int = Field(..., description="Total documents", alias="totalDocuments")
+    processed_count: int = Field(..., description="Number processed", alias="processedCount")
+    failed_count: int = Field(..., description="Number failed", alias="failedCount")
+    status: str = Field(..., description="Job status (in_progress, completed, failed)")
+    estimated_completion_time: Optional[str] = Field(
+        default=None, description="Estimated completion time (ISO 8601)", alias="estimatedCompletionTime"
+    )
+    completed_at: Optional[str] = Field(default=None, description="Completion time (ISO 8601)", alias="completedAt")
+    processing_time_seconds: Optional[float] = Field(
+        default=None, description="Processing time in seconds", alias="processingTimeSeconds"
+    )
+    failed_documents: List[ReindexFailedDocument] = Field(
+        default_factory=list, description="Failed documents", alias="failedDocuments"
+    )
+
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "reindexJobId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                "totalDocuments": 150,
+                "processedCount": 75,
+                "failedCount": 2,
+                "status": "in_progress",
+                "estimatedCompletionTime": "2025-10-16T14:45:00Z",
+                "failedDocuments": [
+                    {
+                        "documentId": "660f9511-f3ac-52e5-b827-557766551111",
+                        "error": "Failed to apply new metadata field: Invalid default value",
+                    }
+                ],
+            }
+        }

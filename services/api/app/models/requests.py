@@ -23,3 +23,61 @@ class IngestDocumentRequest(BaseModel):
                 "expected_entity_types": ["person", "organization", "technology"],
             }
         }
+
+
+class ReindexFilters(BaseModel):
+    """Filters for reindexing documents.
+
+    Attributes:
+        document_ids: List of specific document IDs to reindex
+        ingestion_date_from: Start date for ingestion date filter (ISO 8601)
+        ingestion_date_to: End date for ingestion date filter (ISO 8601)
+        status: Document status filter
+        metadata: Metadata field filters
+    """
+
+    document_ids: Optional[List[str]] = Field(
+        default=None,
+        description="List of document IDs to reindex",
+    )
+    ingestion_date_from: Optional[str] = Field(
+        default=None,
+        description="Filter documents from this ingestion date (ISO 8601)",
+    )
+    ingestion_date_to: Optional[str] = Field(
+        default=None,
+        description="Filter documents to this ingestion date (ISO 8601)",
+    )
+    status: Optional[str] = Field(
+        default=None,
+        description="Filter by document status",
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Filter by metadata fields",
+    )
+
+
+class ReindexRequest(BaseModel):
+    """Request model for triggering document reindexing.
+
+    Attributes:
+        filters: Optional filters to select specific documents
+    """
+
+    filters: Optional[ReindexFilters] = Field(
+        default=None,
+        description="Filters to select documents for reindexing",
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "filters": {
+                    "ingestion_date_from": "2025-10-01",
+                    "ingestion_date_to": "2025-10-16",
+                    "status": "indexed",
+                    "metadata": {"department": "engineering"},
+                }
+            }
+        }
