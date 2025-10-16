@@ -1,6 +1,6 @@
 # Epic 2: Multi-Format Document Ingestion Pipeline
 
-**Status:** Draft
+**Status:** Ready for Development
 **Epic Goal:** Integrate RAG-Anything for parsing multiple document formats (PDF, Markdown, HTML, Word, code files) with custom metadata support, batch ingestion capabilities, and schema migration. By the end of this epic, users can ingest documents through REST API endpoints, specify custom metadata fields, and verify successful ingestion through Neo4j.
 
 ---
@@ -14,6 +14,29 @@
 
 [Details in Story File: 2.1.integrate-rag-anything.md]
 
+**Acceptance Criteria:**
+1. `services/rag-anything-integration/` contains RAG-Anything integration service with FastAPI endpoints
+2. Service exposes endpoint `POST /parse` accepting document upload with multipart/form-data
+3. **Supported formats (6 document types):**
+   - PDF (.pdf) - text-based and image-based/scanned
+   - Plain text (.txt)
+   - Markdown (.md)
+   - Microsoft Word (.docx)
+   - Microsoft PowerPoint (.pptx)
+   - CSV (.csv)
+4. Parse endpoint returns structured JSON with extracted content:
+   - Text blocks with structure preservation
+   - Images (as base64 or references) from PDF, Word, PowerPoint
+   - Tables from PDF, Word, PowerPoint, CSV
+   - Equations from PDF
+   - Slide layouts from PowerPoint
+5. Service runs in Docker container with RAG-Anything dependencies installed
+6. `docker-compose.yml` includes `rag-anything-integration` service configuration
+7. Integration tests verify parsing of sample documents for each supported format
+8. Error handling for unsupported formats returns 400 with clear error message
+9. **GPU Acceleration (Optional):** Documentation includes GPU passthrough setup instructions for MinerU performance optimization (optional enhancement, not required for MVP)
+10. **Fallback Parsers:** For formats that fail Story 0.1 spike validation, implement fallback parsers (pypdf, python-docx, python-pptx, pandas) as documented in spike report
+
 ---
 
 ### Story 2.2: Implement Metadata Schema Definition and Validation
@@ -22,6 +45,15 @@
 **so that** I can filter and organize documents by domain-specific attributes.
 
 [Details in Story File: 2.2.metadata-schema.md]
+
+**Acceptance Criteria:**
+1. `shared/models/metadata.py` defines Pydantic models for metadata schema configuration
+2. Schema supports field types: string, integer, date, boolean, tags (list of strings)
+3. Schema definition file `config/metadata-schema.yaml` allows users to define custom fields with: field name, type, required/optional, default value, description
+4. Example schema includes common fields: author, department, date_created, tags, project_name, category
+5. API validates document metadata against schema on ingestion, returning 422 for invalid metadata
+6. `.env.example` includes `METADATA_SCHEMA_PATH` configuration variable
+7. Documentation in `docs/metadata-configuration.md` explains schema definition with examples
 
 ---
 
@@ -32,6 +64,23 @@
 
 [Details in Story File: 2.3.ingestion-api.md]
 
+**Acceptance Criteria:**
+1. API service exposes `POST /api/v1/documents/ingest` endpoint accepting:
+   - Document file (multipart/form-data)
+   - Metadata JSON object (validated against schema)
+   - Optional: expected_entity_types (list of domain-specific entity types)
+2. Endpoint orchestrates: RAG-Anything parsing → store raw parsed content → queue for LightRAG processing (Epic 3 dependency)
+3. Response includes: document_id (UUID), ingestion_status ("parsing", "queued"), metadata confirmation
+4. **Neo4j Storage Schema:** Parsed document content stored in Neo4j with the following schema:
+   - Node label: `(:Document {id: UUID, filename: string, status: string, metadata: JSON, ingestion_date: datetime, size_bytes: int})`
+   - Relationship: `(:Document)-[:HAS_CONTENT]->(:ParsedContent {text: string, format: string, tables: JSON, images: JSON})`
+   - Index created on `Document.id` and `Document.metadata` fields for query optimization
+5. API handles file size limits (configurable, default 50MB) and returns 413 for oversized files
+6. **Authentication & Rate Limiting:** Rate limiting implemented using mock API key validation for Epic 2 testing (configurable, default 10 requests/minute per API key). Note: Real API key authentication will be implemented in Epic 4 Story 4.2
+7. **LightRAG Queue Mechanism:** Documents queued for LightRAG processing using Python asyncio queue (in-memory for MVP). Note: May upgrade to Redis queue in Epic 5 for production scalability
+8. OpenAPI documentation updated with ingestion endpoint specification and examples
+9. Integration test successfully ingests sample PDF with metadata
+
 ---
 
 ### Story 2.4: Implement Batch Document Ingestion and Progress Tracking
@@ -40,6 +89,21 @@
 **so that** I can efficiently populate large knowledge bases.
 
 [Details in Story File: 2.4.batch-ingestion.md]
+
+**Acceptance Criteria:**
+1. API endpoint `POST /api/v1/documents/ingest/batch` accepts:
+   - Multiple document files (multipart/form-data, max 100 files per batch)
+   - Optional: CSV/JSON file mapping filenames to metadata
+2. Batch ingestion processes documents asynchronously, returning batch_id immediately
+3. Endpoint `GET /api/v1/documents/ingest/batch/{batch_id}/status` returns:
+   - total_documents, processed_count, failed_count, status ("in_progress", "completed", "partial_failure")
+   - List of failed documents with error messages
+4. Failed document ingestion doesn't block entire batch—partial success supported
+5. Background task queue (using Python asyncio or simple queue) manages batch processing with streaming upload support to prevent memory spikes (max 5GB concurrent processing limit)
+6. Batch ingestion logs progress to structured logs for monitoring
+7. Documentation in `docs/batch-ingestion.md` with CSV metadata format examples
+8. **Performance Testing:** Integration test verifies batch ingestion of 20 documents completes in <2 minutes (>10 docs/min KPI validation)
+9. Integration test verifies batch ingestion of 10 documents with mixed metadata
 
 ---
 
@@ -50,6 +114,16 @@
 
 [Details in Story File: 2.5.entity-types.md]
 
+**Acceptance Criteria:**
+1. Configuration file `config/entity-types.yaml` allows defining custom entity types with: type_name, description, examples
+2. Default entity types provided: person, organization, concept, product, location, technology, event, document
+3. Entity types configuration loaded at service startup and accessible via API
+4. API endpoint `GET /api/v1/config/entity-types` returns currently configured entity types
+5. API endpoint `POST /api/v1/config/entity-types` allows adding new entity types (persisted to config file)
+6. Entity types passed to LightRAG during graph construction (Epic 3 integration point)
+7. `.env.example` includes `ENTITY_TYPES_CONFIG_PATH` variable
+8. Documentation in `docs/entity-configuration.md` with domain-specific examples (legal, medical, technical documentation)
+
 ---
 
 ### Story 2.6: Implement Document Management API (List, Retrieve, Delete)
@@ -58,6 +132,16 @@
 **so that** I can manage my knowledge base content.
 
 [Details in Story File: 2.6.document-management.md]
+
+**Acceptance Criteria:**
+1. API endpoint `GET /api/v1/documents` returns paginated list of documents with: document_id, filename, metadata, ingestion_date, status, size
+2. Query parameters support filtering: metadata fields (e.g., `?department=engineering`), date ranges, status
+3. API endpoint `GET /api/v1/documents/{document_id}` returns full document details including parsed content preview
+4. API endpoint `DELETE /api/v1/documents/{document_id}` removes document and associated graph nodes/relationships from Neo4j
+5. Delete operation is idempotent—deleting non-existent document returns 204 (no error)
+6. Document listing supports pagination with `limit` and `offset` parameters (default limit: 50, max: 500)
+7. Neo4j queries optimized with indexes on document_id and metadata fields
+8. Integration tests verify list filtering, document retrieval, and deletion workflows
 
 ---
 
@@ -68,28 +152,77 @@
 
 [Details in Story File: 2.7.schema-migration.md]
 
+**Acceptance Criteria:**
+1. API endpoint `PUT /api/v1/config/metadata-schema` accepts updated metadata schema YAML/JSON and persists to `config/metadata-schema.yaml`
+2. Schema validation ensures backward compatibility:
+   - New fields must be optional or have defaults
+   - Existing required fields cannot be removed
+   - Field type changes rejected (breaking change)
+3. Schema update triggers reindexing workflow:
+   - Option 1 (immediate): Automatically reindex all documents in background
+   - Option 2 (deferred): Mark schema as "pending reindex," user triggers manually
+4. API endpoint `POST /api/v1/documents/reindex` triggers reindexing:
+   - Accepts optional filters (document IDs, date ranges, metadata criteria)
+   - Returns reindex_job_id for progress tracking
+   - Reindexing updates document metadata fields without re-parsing content
+5. API endpoint `GET /api/v1/documents/reindex/{job_id}/status` returns:
+   - total_documents, processed_count, failed_count, status ("in_progress", "completed", "failed")
+   - Estimated time remaining
+6. Existing documents with missing new optional fields use schema defaults
+7. Schema changes logged with timestamp, user, and change description to audit log
+8. Documentation in `docs/schema-migration.md` explains:
+   - When to use metadata schema updates
+   - Backward compatibility requirements
+   - Reindexing workflow and performance considerations
+   - Examples of common schema evolutions
+
 ---
 
 ## Epic Dependencies
 
 **Depends On:**
-- Epic 1: Foundation & Core Infrastructure (Neo4j, API service, logging)
+- Epic 1: Foundation & Core Infrastructure (Neo4j, API service, logging) ✅ **COMPLETE**
+- **Story 0.1: RAG-Anything Technical Validation Spike** (RECOMMENDED - 2 days before Epic 2 start)
 
 **Blocks:**
 - Epic 3: Graph-Based Retrieval & Knowledge Graph Construction (requires ingested documents)
 
 ---
 
+## Recommended Sprint Plan
+
+Epic 2 stories can be parallelized for optimal development velocity:
+
+**Sprint 1 (Week 1):** Parallel Foundation Stories
+- Story 2.1: Integrate RAG-Anything (depends on Story 0.1 spike results)
+- Story 2.2: Metadata Schema Definition (independent)
+- Story 2.5: Entity Type Configuration (independent)
+- **Total: ~12 story points**
+
+**Sprint 2 (Week 2):** Core Ingestion
+- Story 2.3: Document Ingestion API (depends on 2.1 + 2.2)
+- **Total: ~5 story points**
+
+**Sprint 3 (Week 3):** Management & Migration
+- Story 2.4: Batch Ingestion (depends on 2.3)
+- Story 2.6: Document Management API (depends on 2.3)
+- Story 2.7: Schema Migration (depends on 2.2 + 2.6)
+- **Total: ~11 story points**
+
+**Key Optimization:** Stories 2.1, 2.2, and 2.5 have no interdependencies and can be developed simultaneously.
+
+---
+
 ## Epic Acceptance Criteria
 
-1. ✅ RAG-Anything service integrated and parsing PDF, Markdown, HTML, Word, code files
-2. ✅ Metadata schema configurable via `config/metadata-schema.yaml`
-3. ✅ Document ingestion API endpoint `POST /api/v1/documents/ingest` functional
-4. ✅ Batch ingestion API endpoint `POST /api/v1/documents/ingest/batch` handles 100+ files
-5. ✅ Entity types configurable via `config/entity-types.yaml`
-6. ✅ Document management API endpoints (list, retrieve, delete) operational
-7. ✅ Metadata schema migration workflow tested with backward compatibility
-8. ✅ Integration tests verify end-to-end document ingestion with metadata
+1. [ ] RAG-Anything service integrated and parsing all 6 document formats: PDF, TXT, MD, DOCX, PPTX, CSV
+2. [ ] Metadata schema configurable via `config/metadata-schema.yaml`
+3. [ ] Document ingestion API endpoint `POST /api/v1/documents/ingest` functional
+4. [ ] Batch ingestion API endpoint `POST /api/v1/documents/ingest/batch` handles 100+ files
+5. [ ] Entity types configurable via `config/entity-types.yaml`
+6. [ ] Document management API endpoints (list, retrieve, delete) operational
+7. [ ] Metadata schema migration workflow tested with backward compatibility
+8. [ ] Integration tests verify end-to-end document ingestion with metadata for all 6 formats
 
 ---
 
@@ -130,23 +263,25 @@
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| RAG-Anything parsing failures | Medium | High | Robust error handling, format validation, user documentation |
-| Large file uploads (>50MB) | Medium | Medium | File size limits, streaming uploads, documentation |
-| Metadata schema conflicts | Low | Medium | Backward compatibility validation, migration testing |
-| Batch ingestion performance | Medium | Medium | Async processing, progress tracking, partial success support |
+| RAG-Anything parsing failures | Medium | High | Story 0.1 spike validates before Epic 2, fallback parsers identified (pypdf, python-docx, python-pptx, pandas) |
+| Large file uploads (>50MB) | Medium | Medium | File size limits (Story 2.3 AC5), streaming uploads (Story 2.4 AC5), documentation |
+| Metadata schema conflicts | Low | Medium | Backward compatibility validation (Story 2.7 AC2), migration testing |
+| Batch ingestion performance | Medium | Medium | Async processing, progress tracking, partial success support, performance testing (Story 2.4 AC8: >10 docs/min KPI) |
+| Neo4j storage capacity for large batches | Low | Medium | Monitor disk usage during batch ingestion, implement storage alerts in Epic 5, documentation on capacity planning |
+| Concurrent batch ingestion (multiple users) | Low | Medium | Story 2.4 AC5 queue supports single batch at a time for MVP; concurrent batches queued sequentially to prevent memory spikes |
 
 ---
 
 ## Epic Definition of Done
 
 - [ ] All 7 stories completed with acceptance criteria met
-- [ ] Integration tests pass for all document formats (PDF, Markdown, HTML, Word, code)
+- [ ] Integration tests pass for all 6 document formats (PDF, TXT, MD, DOCX, PPTX, CSV)
 - [ ] Metadata validation working with custom schemas
 - [ ] Batch ingestion handles 100+ documents successfully
 - [ ] Schema migration tested with backward compatibility
 - [ ] API documentation updated with all endpoints
 - [ ] Error handling comprehensive (file size, unsupported formats, validation errors)
-- [ ] Demo: Ingest 10 documents → verify in Neo4j → delete → confirm cleanup
+- [ ] Demo: Ingest 10 mixed-format documents → verify in Neo4j → delete → confirm cleanup
 
 ---
 
@@ -167,3 +302,7 @@
 | Date | Version | Description | Author |
 |------|---------|-------------|--------|
 | 2025-10-15 | 1.0 | Epic created from PRD | Sarah (PO Agent) |
+| 2025-10-16 | 2.0 | Consolidated with detailed PRD version | John (PM Agent) |
+| 2025-10-16 | 3.0 | Pre-development review updates: Added Story 0.1 dependency, Neo4j schema clarification (Story 2.3 AC4), queue mechanism specification (Story 2.3 AC7), auth strategy clarification (Story 2.3 AC6), performance testing (Story 2.4 AC8), GPU docs (Story 2.1 AC9-10), sprint plan optimization | John (PM Agent) |
+| 2025-10-16 | 3.1 | Updated format requirements (Story 2.1 AC3): Removed code parsers (HTML, .py, .js, .ts, .java), focusing on 6 document formats (PDF, TXT, MD, DOCX, PPTX, CSV) per user requirement | John (PM Agent) |
+| 2025-10-16 | 3.2 | Pre-development validation: Enhanced risk table with Story 0.1 spike mitigation details, added 2 new risks (Neo4j storage capacity, concurrent batch ingestion) with mitigations | Sarah (PO Agent) |
