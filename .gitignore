@@ -105,3 +105,6 @@ benchmarks/*.csv
 
 # CI/CD artifacts
 .github/workflows/*.log
+
+#can't send too large file
+large-file.*
