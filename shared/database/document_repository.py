@@ -24,6 +24,7 @@ async def create_indexes(session: Session) -> None:
         "CREATE INDEX document_id_index IF NOT EXISTS FOR (d:Document) ON (d.id)",
         "CREATE INDEX document_metadata_index IF NOT EXISTS FOR (d:Document) ON (d.metadata)",
         "CREATE INDEX document_status_index IF NOT EXISTS FOR (d:Document) ON (d.status)",
+        "CREATE INDEX document_ingestion_date_index IF NOT EXISTS FOR (d:Document) ON (d.ingestion_date)",
     ]
 
     for index_query in indexes:
@@ -229,3 +230,232 @@ async def get_document(session: Session, document_id: str) -> Optional[Dict[str,
         "document": doc_node,
         "parsed_content": content_node,
     }
+
+
+async def list_documents(
+    session: Session,
+    filters: Dict[str, Any],
+    limit: int = 50,
+    offset: int = 0,
+) -> List[Dict[str, Any]]:
+    """List documents with filtering and pagination.
+
+    Args:
+        session: Neo4j session
+        filters: Filter criteria (status, ingestion_date_from, ingestion_date_to, metadata fields)
+        limit: Number of documents to return (default: 50, max: 500)
+        offset: Pagination offset (default: 0)
+
+    Returns:
+        List of document dictionaries
+    """
+    # Build WHERE clause dynamically for metadata filters
+    where_clauses = []
+    params = {"limit": limit, "offset": offset}
+
+    # Status filter
+    if filters.get("status"):
+        where_clauses.append("d.status = $status")
+        params["status"] = filters["status"]
+
+    # Date range filters
+    if filters.get("ingestion_date_from"):
+        where_clauses.append("d.ingestion_date >= datetime($ingestion_date_from)")
+        params["ingestion_date_from"] = filters["ingestion_date_from"]
+
+    if filters.get("ingestion_date_to"):
+        where_clauses.append("d.ingestion_date <= datetime($ingestion_date_to)")
+        params["ingestion_date_to"] = filters["ingestion_date_to"]
+
+    # Metadata field filters (dynamic)
+    # Security: Validate field names to prevent Cypher injection
+    metadata_filters = {k: v for k, v in filters.items() if k not in ["status", "ingestion_date_from", "ingestion_date_to"]}
+    for idx, (field, value) in enumerate(metadata_filters.items()):
+        # Whitelist alphanumeric and underscore only to prevent injection
+        if not field.replace("_", "").isalnum():
+            logger.warning(
+                "invalid_metadata_field_name",
+                field=field,
+                message="Skipping metadata filter with invalid field name"
+            )
+            continue
+        param_name = f"metadata_{idx}"
+        where_clauses.append(f"d.metadata.{field} = ${param_name}")
+        params[param_name] = value
+
+    # Construct WHERE clause
+    where_clause = " AND ".join(where_clauses) if where_clauses else "true"
+
+    query = f"""
+    MATCH (d:Document)
+    WHERE {where_clause}
+    RETURN d.id AS document_id,
+           d.filename AS filename,
+           d.metadata AS metadata,
+           d.ingestion_date AS ingestion_date,
+           d.status AS status,
+           d.size_bytes AS size_bytes
+    ORDER BY d.ingestion_date DESC
+    SKIP $offset
+    LIMIT $limit
+    """
+
+    result = session.run(query, params)
+    documents = [dict(record) for record in result]
+
+    logger.info(
+        "documents_listed",
+        count=len(documents),
+        filters=filters,
+        limit=limit,
+        offset=offset,
+    )
+
+    return documents
+
+
+async def count_documents(session: Session, filters: Dict[str, Any]) -> int:
+    """Count documents matching filters.
+
+    Args:
+        session: Neo4j session
+        filters: Filter criteria (status, ingestion_date_from, ingestion_date_to, metadata fields)
+
+    Returns:
+        Total count of matching documents
+    """
+    # Build WHERE clause dynamically for metadata filters
+    where_clauses = []
+    params = {}
+
+    # Status filter
+    if filters.get("status"):
+        where_clauses.append("d.status = $status")
+        params["status"] = filters["status"]
+
+    # Date range filters
+    if filters.get("ingestion_date_from"):
+        where_clauses.append("d.ingestion_date >= datetime($ingestion_date_from)")
+        params["ingestion_date_from"] = filters["ingestion_date_from"]
+
+    if filters.get("ingestion_date_to"):
+        where_clauses.append("d.ingestion_date <= datetime($ingestion_date_to)")
+        params["ingestion_date_to"] = filters["ingestion_date_to"]
+
+    # Metadata field filters (dynamic)
+    # Security: Validate field names to prevent Cypher injection
+    metadata_filters = {k: v for k, v in filters.items() if k not in ["status", "ingestion_date_from", "ingestion_date_to"]}
+    for idx, (field, value) in enumerate(metadata_filters.items()):
+        # Whitelist alphanumeric and underscore only to prevent injection
+        if not field.replace("_", "").isalnum():
+            logger.warning(
+                "invalid_metadata_field_name",
+                field=field,
+                message="Skipping metadata filter with invalid field name"
+            )
+            continue
+        param_name = f"metadata_{idx}"
+        where_clauses.append(f"d.metadata.{field} = ${param_name}")
+        params[param_name] = value
+
+    # Construct WHERE clause
+    where_clause = " AND ".join(where_clauses) if where_clauses else "true"
+
+    query = f"""
+    MATCH (d:Document)
+    WHERE {where_clause}
+    RETURN count(d) AS total_count
+    """
+
+    result = session.run(query, params)
+    record = result.single()
+
+    total_count = record["total_count"] if record else 0
+
+    logger.info("documents_counted", total_count=total_count, filters=filters)
+
+    return total_count
+
+
+async def get_document_by_id(session: Session, document_id: str) -> Optional[Dict[str, Any]]:
+    """Get document details by ID with parsed content.
+
+    Args:
+        session: Neo4j session
+        document_id: Document UUID
+
+    Returns:
+        Document details with parsed content, or None if not found
+    """
+    query = """
+    MATCH (d:Document {id: $document_id})
+    OPTIONAL MATCH (d)-[:HAS_CONTENT]->(pc:ParsedContent)
+    RETURN d.id AS document_id,
+           d.filename AS filename,
+           d.metadata AS metadata,
+           d.ingestion_date AS ingestion_date,
+           d.status AS status,
+           d.size_bytes AS size_bytes,
+           pc.format AS format,
+           pc.text AS text,
+           pc.tables AS tables,
+           pc.images AS images,
+           pc.page_count AS page_count
+    """
+
+    params = {"document_id": document_id}
+
+    result = session.run(query, params)
+    record = result.single()
+
+    if not record:
+        logger.info("document_not_found", document_id=document_id)
+        return None
+
+    # Build parsed content preview (first 500 characters)
+    text = record["text"] if record["text"] else ""
+    preview = text[:500] if text else ""
+
+    document_detail = {
+        "document_id": record["document_id"],
+        "filename": record["filename"],
+        "metadata": record["metadata"] or {},
+        "ingestion_date": record["ingestion_date"],
+        "status": record["status"],
+        "size_bytes": record["size_bytes"],
+        "parsed_content": {
+            "format": record["format"],
+            "page_count": record["page_count"],
+            "text_blocks": len(text.split("\n")) if text else 0,
+            "images": len(record["images"]) if record["images"] else 0,
+            "tables": len(record["tables"]) if record["tables"] else 0,
+            "preview": preview,
+        } if record["format"] else None,
+    }
+
+    logger.info("document_retrieved", document_id=document_id)
+
+    return document_detail
+
+
+async def delete_document(session: Session, document_id: str) -> None:
+    """Delete document and associated content (idempotent).
+
+    Args:
+        session: Neo4j session
+        document_id: Document UUID
+
+    Note:
+        This operation is idempotent - deleting a non-existent document succeeds silently.
+    """
+    query = """
+    MATCH (d:Document {id: $document_id})
+    OPTIONAL MATCH (d)-[:HAS_CONTENT]->(pc:ParsedContent)
+    DETACH DELETE d, pc
+    """
+
+    params = {"document_id": document_id}
+
+    session.run(query, params)
+
+    logger.info("document_deleted", document_id=document_id)
