@@ -38,9 +38,11 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FORMAT=${LOG_FORMAT:-json}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
+      - RAG_ANYTHING_URL=${RAG_ANYTHING_URL:-http://rag-anything:8001}
     volumes:
       - ./services/api:/app
       - ./shared:/app/shared
+      - ./config:/app/config
     depends_on:
       neo4j:
         condition: service_healthy

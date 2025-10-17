@@ -7,9 +7,10 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient, ASGITransport
+from neo4j import GraphDatabase, Session
 
 from app.main import app
-from app.config import Settings
+from app.config import Settings, get_settings
 
 
 @pytest.fixture
@@ -31,6 +32,7 @@ def test_settings() -> Settings:
         CORS_ORIGINS="http://localhost:3000,http://localhost:8080",
         LOG_LEVEL="DEBUG",
         LOG_FORMAT="json",
+        RAG_ANYTHING_URL="http://localhost:8001",
     )
 
 
@@ -327,3 +329,47 @@ def valid_metadata_json() -> str:
     import json
 
     return json.dumps({"author": "Test Author", "version": 1, "tags": ["test", "api"]})
+
+
+# ============ E2E Testing Fixtures ============
+
+
+def pytest_addoption(parser):
+    """Add custom pytest command-line options."""
+    parser.addoption(
+        "--clean",
+        action="store_true",
+        default=False,
+        help="Clean up test data after execution (default: leave persistent)"
+    )
+
+
+@pytest.fixture
+def clean_mode(request) -> bool:
+    """
+    Get clean mode flag from pytest command line.
+
+    Returns:
+        bool: True if --clean flag was passed, False otherwise
+    """
+    return request.config.getoption("--clean")
+
+
+@pytest.fixture
+def neo4j_session() -> Session:
+    """
+    Create a Neo4j session for integration tests.
+
+    Yields:
+        Session: Neo4j database session
+    """
+    settings = get_settings()
+    driver = GraphDatabase.driver(
+        settings.NEO4J_URI,
+        auth=tuple(settings.NEO4J_AUTH.split("/"))
+    )
+
+    with driver.session(database=settings.NEO4J_DATABASE) as session:
+        yield session
+
+    driver.close()

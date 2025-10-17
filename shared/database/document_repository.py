@@ -22,7 +22,6 @@ async def create_indexes(session: Session) -> None:
     """
     indexes = [
         "CREATE INDEX document_id_index IF NOT EXISTS FOR (d:Document) ON (d.id)",
-        "CREATE INDEX document_metadata_index IF NOT EXISTS FOR (d:Document) ON (d.metadata)",
         "CREATE INDEX document_status_index IF NOT EXISTS FOR (d:Document) ON (d.status)",
         "CREATE INDEX document_ingestion_date_index IF NOT EXISTS FOR (d:Document) ON (d.ingestion_date)",
     ]
@@ -89,13 +88,17 @@ async def store_document(
         # Get page count from metadata
         page_count = parsed_content.get("metadata", {}).get("pages", len(content_list))
 
-        # Create Document node
+        # Create Document node with flattened metadata
+        # Note: Neo4j requires metadata fields as individual properties
+        # Store as JSON string for complex nested structures
+        import json
+
         document_query = """
         CREATE (d:Document {
             id: $document_id,
             filename: $filename,
             status: $status,
-            metadata: $metadata,
+            metadata_json: $metadata_json,
             ingestion_date: datetime(),
             size_bytes: $size_bytes,
             expected_entity_types: $expected_entity_types
@@ -107,7 +110,7 @@ async def store_document(
             "document_id": document_id,
             "filename": filename,
             "status": status,
-            "metadata": metadata,
+            "metadata_json": json.dumps(metadata),
             "size_bytes": size_bytes,
             "expected_entity_types": expected_entity_types or [],
         }
@@ -249,6 +252,8 @@ async def list_documents(
     Returns:
         List of document dictionaries
     """
+    import json
+
     # Build WHERE clause dynamically for metadata filters
     where_clauses = []
     params = {"limit": limit, "offset": offset}
@@ -268,20 +273,14 @@ async def list_documents(
         params["ingestion_date_to"] = filters["ingestion_date_to"]
 
     # Metadata field filters (dynamic)
-    # Security: Validate field names to prevent Cypher injection
+    # Note: Metadata filtering not supported when stored as JSON string
+    # This would require JSON parsing in Cypher (APOC) or post-filtering in Python
     metadata_filters = {k: v for k, v in filters.items() if k not in ["status", "ingestion_date_from", "ingestion_date_to"]}
-    for idx, (field, value) in enumerate(metadata_filters.items()):
-        # Whitelist alphanumeric and underscore only to prevent injection
-        if not field.replace("_", "").isalnum():
-            logger.warning(
-                "invalid_metadata_field_name",
-                field=field,
-                message="Skipping metadata filter with invalid field name"
-            )
-            continue
-        param_name = f"metadata_{idx}"
-        where_clauses.append(f"d.metadata.{field} = ${param_name}")
-        params[param_name] = value
+    if metadata_filters:
+        logger.warning(
+            "metadata_filtering_not_supported",
+            message="Metadata field filtering requires APOC or post-processing"
+        )
 
     # Construct WHERE clause
     where_clause = " AND ".join(where_clauses) if where_clauses else "true"
@@ -291,7 +290,7 @@ async def list_documents(
     WHERE {where_clause}
     RETURN d.id AS document_id,
            d.filename AS filename,
-           d.metadata AS metadata,
+           d.metadata_json AS metadata_json,
            d.ingestion_date AS ingestion_date,
            d.status AS status,
            d.size_bytes AS size_bytes
@@ -301,7 +300,16 @@ async def list_documents(
     """
 
     result = session.run(query, params)
-    documents = [dict(record) for record in result]
+    documents = []
+    for record in result:
+        doc = dict(record)
+        # Parse metadata JSON string back to dict
+        try:
+            doc["metadata"] = json.loads(doc["metadata_json"]) if doc.get("metadata_json") else {}
+        except (json.JSONDecodeError, TypeError):
+            doc["metadata"] = {}
+        doc.pop("metadata_json", None)
+        documents.append(doc)
 
     logger.info(
         "documents_listed",
@@ -343,20 +351,13 @@ async def count_documents(session: Session, filters: Dict[str, Any]) -> int:
         params["ingestion_date_to"] = filters["ingestion_date_to"]
 
     # Metadata field filters (dynamic)
-    # Security: Validate field names to prevent Cypher injection
+    # Note: Metadata filtering not supported when stored as JSON string
     metadata_filters = {k: v for k, v in filters.items() if k not in ["status", "ingestion_date_from", "ingestion_date_to"]}
-    for idx, (field, value) in enumerate(metadata_filters.items()):
-        # Whitelist alphanumeric and underscore only to prevent injection
-        if not field.replace("_", "").isalnum():
-            logger.warning(
-                "invalid_metadata_field_name",
-                field=field,
-                message="Skipping metadata filter with invalid field name"
-            )
-            continue
-        param_name = f"metadata_{idx}"
-        where_clauses.append(f"d.metadata.{field} = ${param_name}")
-        params[param_name] = value
+    if metadata_filters:
+        logger.warning(
+            "metadata_filtering_not_supported",
+            message="Metadata field filtering requires APOC or post-processing"
+        )
 
     # Construct WHERE clause
     where_clause = " AND ".join(where_clauses) if where_clauses else "true"
@@ -387,12 +388,14 @@ async def get_document_by_id(session: Session, document_id: str) -> Optional[Dic
     Returns:
         Document details with parsed content, or None if not found
     """
+    import json
+
     query = """
     MATCH (d:Document {id: $document_id})
     OPTIONAL MATCH (d)-[:HAS_CONTENT]->(pc:ParsedContent)
     RETURN d.id AS document_id,
            d.filename AS filename,
-           d.metadata AS metadata,
+           d.metadata_json AS metadata_json,
            d.ingestion_date AS ingestion_date,
            d.status AS status,
            d.size_bytes AS size_bytes,
@@ -416,10 +419,16 @@ async def get_document_by_id(session: Session, document_id: str) -> Optional[Dic
     text = record["text"] if record["text"] else ""
     preview = text[:500] if text else ""
 
+    # Parse metadata JSON
+    try:
+        metadata = json.loads(record["metadata_json"]) if record.get("metadata_json") else {}
+    except (json.JSONDecodeError, TypeError):
+        metadata = {}
+
     document_detail = {
         "document_id": record["document_id"],
         "filename": record["filename"],
-        "metadata": record["metadata"] or {},
+        "metadata": metadata,
         "ingestion_date": record["ingestion_date"],
         "status": record["status"],
         "size_bytes": record["size_bytes"],
@@ -476,15 +485,17 @@ async def update_document_metadata(
     Raises:
         Exception: If document not found
     """
+    import json
+
     query = """
     MATCH (d:Document {id: $document_id})
-    SET d.metadata = $metadata
+    SET d.metadata_json = $metadata_json
     RETURN d.id AS document_id
     """
 
     params = {
         "document_id": document_id,
-        "metadata": metadata,
+        "metadata_json": json.dumps(metadata),
     }
 
     result = session.run(query, params)

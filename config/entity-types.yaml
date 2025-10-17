@@ -19,49 +19,54 @@
 
 entity_types:
   - type_name: person
-    description: "Individual people, including names, roles, and titles"
+    description: "Individual names, contact information, professionals mentioned in CVs"
     examples:
       - "John Doe"
       - "Dr. Jane Smith"
       - "CEO Bob Johnson"
       - "Professor Alice Williams"
       - "Software Engineer Maria Garcia"
+      - "Michael Johnson, PhD"
 
-  - type_name: organization
-    description: "Companies, institutions, agencies, and groups"
+  - type_name: company
+    description: "Organizations, employers, companies, institutions, universities"
     examples:
+      - "Google LLC"
       - "Microsoft Corporation"
       - "Stanford University"
-      - "World Health Organization"
+      - "Amazon Web Services"
+      - "Meta Platforms Inc."
       - "Acme Inc."
-      - "Department of Energy"
 
-  - type_name: concept
-    description: "Abstract ideas, theories, methodologies, and principles"
+  - type_name: domain
+    description: "Professional fields, industry sectors, knowledge areas that connect jobs, skills, and technologies"
     examples:
-      - "Machine Learning"
-      - "Agile Methodology"
-      - "Supply Chain Management"
-      - "Quantum Computing"
-      - "Six Sigma"
+      - "Data Science"
+      - "Cloud Computing"
+      - "Artificial Intelligence"
+      - "Cybersecurity"
+      - "DevOps"
+      - "Database Administration"
 
   - type_name: product
-    description: "Products, services, tools, and offerings"
+    description: "Software products, platforms, tools, and commercial offerings"
     examples:
-      - "iPhone 15"
+      - "PostgreSQL"
       - "Microsoft Azure"
       - "Adobe Photoshop"
-      - "Tesla Model 3"
+      - "Salesforce"
       - "AWS Lambda"
+      - "Oracle Database"
 
   - type_name: location
-    description: "Geographic locations, places, addresses, and regions"
+    description: "Cities, countries, addresses, geographic locations"
     examples:
       - "San Francisco, CA"
       - "Building A, Floor 3"
       - "United States"
       - "Silicon Valley"
       - "123 Main Street"
+      - "United Kingdom"
 
   - type_name: technology
     description: "Technologies, frameworks, programming languages, and technical tools"
@@ -84,8 +89,29 @@ entity_types:
   - type_name: document
     description: "Documents, reports, policies, and written materials"
     examples:
+      - "CV"
       - "Employee Handbook"
       - "API Documentation"
       - "Privacy Policy"
       - "Q3 Financial Report"
       - "Technical Specification"
+
+  - type_name: job
+    description: "Job titles, roles, positions, occupations"
+    examples:
+      - "Senior Software Engineer"
+      - "Product Manager"
+      - "Data Scientist"
+      - "Database Administrator"
+      - "Chief Technology Officer"
+      - "Full Stack Developer"
+
+  - type_name: skill
+    description: "Professional skills, competencies, abilities"
+    examples:
+      - "Python programming"
+      - "SQL query optimization"
+      - "Project management"
+      - "Machine learning"
+      - "Team leadership"
+      - "Data analysis"

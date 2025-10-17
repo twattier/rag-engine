@@ -178,6 +178,23 @@
 
 ---
 
+### Story 2.8: End-to-End Integration Testing with Real CV Data
+**As a** RAG Engine developer,
+**I want** to test the complete document ingestion pipeline with real CV PDF files from HuggingFace,
+**so that** I can validate end-to-end functionality (API → Neo4j) and prepare for CV-specific entity extraction.
+
+[Details in Story File: 2.8.cv-data-testing.md]
+
+**Acceptance Criteria:**
+1. Script `scripts/download-sample-data.py` downloads CV PDF files from HuggingFace dataset (https://huggingface.co/datasets/gigswar/cv_files)
+2. End-to-end integration tests validate complete pipeline (upload → parse → store → retrieve → delete)
+3. CV-specific entity types configured (person, location, job, company, skill, technology)
+4. Service health validation scripts test all services (API → Neo4j)
+5. Documentation for sample data and testing procedures
+6. Performance baseline metrics captured for future regression testing
+
+---
+
 ## Epic Dependencies
 
 **Depends On:**
@@ -208,6 +225,10 @@ Epic 2 stories can be parallelized for optimal development velocity:
 - Story 2.6: Document Management API (depends on 2.3)
 - Story 2.7: Schema Migration (depends on 2.2 + 2.6)
 - **Total: ~11 story points**
+
+**Sprint 4 (Post-Epic Validation):** E2E Testing & Validation
+- Story 2.8: End-to-End Testing with CV Data (depends on 2.1-2.7 completion)
+- **Total: ~5 story points**
 
 **Key Optimization:** Stories 2.1, 2.2, and 2.5 have no interdependencies and can be developed simultaneously.
 
@@ -274,11 +295,12 @@ Epic 2 stories can be parallelized for optimal development velocity:
 
 ## Epic Definition of Done
 
-- [ ] All 7 stories completed with acceptance criteria met
+- [ ] All 8 stories completed with acceptance criteria met
 - [ ] Integration tests pass for all 6 document formats (PDF, TXT, MD, DOCX, PPTX, CSV)
 - [ ] Metadata validation working with custom schemas
 - [ ] Batch ingestion handles 100+ documents successfully
 - [ ] Schema migration tested with backward compatibility
+- [ ] End-to-end pipeline validated with real CV data
 - [ ] API documentation updated with all endpoints
 - [ ] Error handling comprehensive (file size, unsupported formats, validation errors)
 - [ ] Demo: Ingest 10 mixed-format documents → verify in Neo4j → delete → confirm cleanup
@@ -287,13 +309,14 @@ Epic 2 stories can be parallelized for optimal development velocity:
 
 ## Epic Metrics
 
-- **Estimated Story Points:** 28 (based on 7 stories, ~4 points each)
-- **Estimated Duration:** 2-3 weeks for solo developer
+- **Estimated Story Points:** 33 (based on 8 stories: 7 core stories ~4 points each + 1 validation story ~5 points)
+- **Estimated Duration:** 3-4 weeks for solo developer
 - **Key Performance Indicators:**
   - Document parsing success rate: >95%
   - Batch ingestion throughput: >10 documents/minute
   - Metadata validation error rate: <5%
   - API response time: <500ms for single ingestion (async accepted)
+  - End-to-end pipeline validation with real data: 100% passing
 
 ---
 
@@ -306,3 +329,4 @@ Epic 2 stories can be parallelized for optimal development velocity:
 | 2025-10-16 | 3.0 | Pre-development review updates: Added Story 0.1 dependency, Neo4j schema clarification (Story 2.3 AC4), queue mechanism specification (Story 2.3 AC7), auth strategy clarification (Story 2.3 AC6), performance testing (Story 2.4 AC8), GPU docs (Story 2.1 AC9-10), sprint plan optimization | John (PM Agent) |
 | 2025-10-16 | 3.1 | Updated format requirements (Story 2.1 AC3): Removed code parsers (HTML, .py, .js, .ts, .java), focusing on 6 document formats (PDF, TXT, MD, DOCX, PPTX, CSV) per user requirement | John (PM Agent) |
 | 2025-10-16 | 3.2 | Pre-development validation: Enhanced risk table with Story 0.1 spike mitigation details, added 2 new risks (Neo4j storage capacity, concurrent batch ingestion) with mitigations | Sarah (PO Agent) |
+| 2025-10-17 | 3.3 | Added Story 2.8: End-to-End Integration Testing with Real CV Data - validates complete pipeline with HuggingFace CV dataset, CV-specific entity types, service health scripts, and performance baselines | Sarah (PO Agent) |

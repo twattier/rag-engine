@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW_SECONDS: int = 60
 
     # Service URLs
-    RAG_ANYTHING_URL: str = "http://rag-anything:8000"
+    RAG_ANYTHING_URL: str = "http://rag-anything:8001"
 
     def get_cors_origins_list(self) -> list[str]:
         """Get CORS origins as a list."""
@@ -63,8 +63,14 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
+        extra="ignore",  # Allow extra env vars in .env file not defined in Settings
     )
 
 
 # Global settings instance
 settings = Settings()
+
+
+def get_settings() -> Settings:
+    """Get the global settings instance."""
+    return settings
