@@ -1,11 +1,67 @@
 # Epic 3: Graph-Based Retrieval, Knowledge Graph Construction & Visualization
 
-**Status:** Draft
+**Status:** ✅ Ready for Development
 **Epic Goal:** Integrate LightRAG for entity extraction, relationship mapping, hybrid retrieval (vector + graph + BM25), reranking pipeline, and expose graph visualization UI to deliver core RAG functionality with operational transparency. Users can query the knowledge base and receive relevant results leveraging graph-based retrieval superior to simple vector search.
+
+**Story Files Status:** ✅ All 11 story files created
+**Dependencies Status:** ✅ Epic 1 Complete, Epic 2 Complete
+**Estimated Duration:** 3-4 weeks (48 story points)
 
 ---
 
-## Stories in this Epic
+## Story Files Index
+
+All story files created with comprehensive details:
+
+### Phase 1: LightRAG Core Integration (24 points, ~2 weeks)
+- ✅ **[Story 3.1](3.1.lightrag-integration.md)** (8 points) - Integrate LightRAG Core Library and Initialize Graph Storage
+- ✅ **[Story 3.2](3.2.entity-extraction.md)** (8 points) - Implement Entity Extraction with Custom Entity Types
+- ✅ **[Story 3.3](3.3.relationship-mapping.md)** (8 points) - Implement Relationship Mapping and Graph Construction
+
+### Phase 2: Retrieval Pipeline (16 points, ~1 week)
+- ✅ **[Story 3.4](3.4.hybrid-retrieval.md)** (8 points) - Implement Hybrid Retrieval Pipeline (Vector + Graph + BM25)
+- ✅ **[Story 3.5](3.5.metadata-filtering.md)** (4 points) - Implement Metadata-Based Pre-Filtering for Retrieval
+- ✅ **[Story 3.6](3.6.reranking-pipeline.md)** (4 points) - Integrate Reranking Pipeline for Result Refinement
+
+### Phase 3: Visualization & Documentation (8 points, ~1 week)
+- ✅ **[Story 3.7](3.7.lightrag-server-deployment.md)** (2 points) - Deploy LightRAG Server as Docker Service
+- ✅ **[Story 3.8](3.8.neo4j-browser-guide.md)** (1 point) - Configure Neo4j Browser Access and Documentation
+- ✅ **[Story 3.9](3.9.graph-exploration-workflows.md)** (1 point) - Document Graph Exploration Workflows
+- ✅ **[Story 3.10](3.10.graph-filtering.md)** (1 point) - Implement Graph Metadata and Entity Type Filtering
+- ✅ **[Story 3.11](3.11.entity-type-evolution.md)** (3 points) - Implement Entity Type Schema Evolution and Re-Extraction
+
+**Total: 48 story points**
+
+---
+
+## Readiness Checklist
+
+### Dependencies ✅
+- [x] Epic 1: Foundation & Core Infrastructure (Complete)
+- [x] Epic 2: Multi-Format Document Ingestion Pipeline (Complete)
+- [x] Neo4j operational with vector support
+- [x] API service operational
+- [x] Queue service with 5 documents ready for processing
+- [x] Entity types configured ([config/entity-types.yaml](../../config/entity-types.yaml))
+- [x] Metadata schema configured ([config/metadata-schema.yaml](../../config/metadata-schema.yaml))
+
+### Story Files ✅
+- [x] All 11 story files created with comprehensive details
+- [x] Dev notes include architecture references
+- [x] Testing guidance provided
+- [x] Tasks broken down with AC references
+
+### Infrastructure Ready ✅
+- [x] Docker Compose configuration operational
+- [x] Neo4j schema ready for graph extensions
+- [x] 5 CV documents queued for processing
+- [x] RAG-Anything service running
+
+### No Blockers Identified ✅
+
+---
+
+## Stories in this Epic (Detailed)
 
 ## Story 3.1: Integrate LightRAG Core Library and Initialize Graph Storage
 
@@ -228,5 +284,215 @@
    - Examples: adding "API Endpoint" type to technical docs, adding "Regulation" type to legal docs
 
 9. Graph statistics endpoint `GET /api/v1/graph/stats` updated to show entity distribution by type (including new types post-re-extraction)
+
+---
+
+## Recommended Sprint Plan
+
+### Sprint 1 (Week 1): LightRAG Foundation
+**Stories:** 3.1, 3.2 (16 points)
+**Duration:** 5-7 days
+**Goals:**
+- Implement queue processing worker (Story 3.1)
+- Process 5 queued CV documents from Epic 2
+- Extract entities with custom types (Story 3.2)
+- Verify entities in Neo4j graph
+
+**Key Deliverables:**
+- LightRAG service integrated with Neo4j
+- Queue worker operational
+- Document status transitions: "queued" → "indexed"
+- Entity nodes created in Neo4j
+
+**Critical Path:** Story 3.1 must complete before 3.2
+
+---
+
+### Sprint 2 (Week 2): Graph Construction & Core Retrieval
+**Stories:** 3.3, 3.4 (16 points)
+**Duration:** 5-7 days
+**Goals:**
+- Build relationship graph (Story 3.3)
+- Implement hybrid retrieval pipeline (Story 3.4)
+- Achieve NFR1 target: P95 query latency <2s
+
+**Key Deliverables:**
+- Entity relationships mapped
+- Cross-document linking operational
+- Query API endpoint functional
+- All 4 retrieval modes working (naive, local, global, hybrid)
+
+**Critical Path:** Story 3.3 must complete before 3.4
+
+---
+
+### Sprint 3 (Week 3): Retrieval Optimization
+**Stories:** 3.5, 3.6 (8 points)
+**Duration:** 3-4 days
+**Goals:**
+- Optimize query performance with metadata filtering (Story 3.5)
+- Implement reranking for precision (Story 3.6)
+- Achieve NFR9 target: 40%+ latency reduction
+
+**Key Deliverables:**
+- Metadata pre-filtering operational
+- Reranking pipeline integrated
+- Performance targets validated
+
+**Parallelization:** Stories 3.5 and 3.6 can run in parallel if resources available
+
+---
+
+### Sprint 4 (Week 4): Visualization & Documentation
+**Stories:** 3.7, 3.8, 3.9, 3.10, 3.11 (8 points)
+**Duration:** 3-5 days
+**Goals:**
+- Deploy graph visualization UI (Story 3.7)
+- Complete documentation (Stories 3.8, 3.9)
+- Implement graph filtering (Story 3.10)
+- Enable entity type evolution (Story 3.11)
+
+**Key Deliverables:**
+- LightRAG Server UI accessible
+- Neo4j Browser guide complete
+- Graph exploration workflows documented
+- Entity type evolution API operational
+
+**Parallelization:** Stories 3.7-3.10 can run in parallel; Story 3.11 depends on 3.1-3.3
+
+---
+
+## Epic Dependencies
+
+**Depends On:**
+- ✅ Epic 1: Foundation & Core Infrastructure (COMPLETE)
+- ✅ Epic 2: Multi-Format Document Ingestion Pipeline (COMPLETE)
+
+**Blocks:**
+- Epic 4: REST API & Integration Layer (requires query functionality)
+- Epic 5: Production Readiness (requires operational graph-based retrieval)
+
+---
+
+## Epic Acceptance Criteria
+
+1. [ ] LightRAG integrated with Neo4j storage backend
+2. [ ] 5 queued CV documents processed and indexed
+3. [ ] Entity extraction operational with 10 configured entity types
+4. [ ] Relationship mapping creates connected knowledge graph
+5. [ ] Hybrid retrieval pipeline functional (naive, local, global, hybrid modes)
+6. [ ] Metadata-based pre-filtering reduces query latency by 40%+
+7. [ ] Reranking pipeline improves result precision
+8. [ ] LightRAG Server UI accessible and displaying graph
+9. [ ] Neo4j Browser documentation complete
+10. [ ] Graph exploration workflows documented
+11. [ ] Entity type evolution API operational
+12. [ ] **NFR1 Validated:** P95 query latency <2s for 1000-document knowledge base
+13. [ ] **NFR9 Validated:** Metadata filtering achieves 40%+ latency reduction
+
+---
+
+## Technical Notes
+
+### Key Technologies
+- **LightRAG**: 0.x (graph-based retrieval engine)
+- **Neo4j**: 5.x (graph + vector storage)
+- **sentence-transformers**: Latest (local embeddings)
+- **BM25**: rank-bm25 library (keyword matching)
+- **Cross-encoder**: Jina AI or MS Marco (reranking)
+- **LiteLLM**: Latest (LLM proxy for entity extraction)
+
+### Neo4j Schema Extensions
+
+**New Nodes:**
+- `:Entity {id, name, type, embedding, confidence_score, source_doc_id}`
+
+**New Relationships:**
+- `(:Document)-[:CONTAINS {text_span, confidence}]->(:Entity)`
+- `(:Entity)-[:RELATIONSHIP {type, confidence, source_doc_id}]->(:Entity)`
+- `(:Entity)-[:APPEARS_IN]->(:Document)` (cross-document links)
+
+**New Indexes:**
+- `CREATE INDEX entity_name_idx FOR (e:Entity) ON (e.name)`
+- `CREATE INDEX entity_type_idx FOR (e:Entity) ON (e.type)`
+- `CREATE VECTOR INDEX entity_embedding_idx FOR (e:Entity) ON (e.embedding)`
+
+### API Endpoints Created
+- `POST /api/v1/query` - Hybrid retrieval query
+- `GET /api/v1/graph/stats` - Graph statistics
+- `GET /api/v1/graph/query` - Programmatic graph queries
+- `POST /api/v1/config/entity-types` - Add entity type
+- `POST /api/v1/graph/re-extract` - Trigger re-extraction
+- `GET /api/v1/graph/re-extract/{job_id}/status` - Re-extraction progress
+
+---
+
+## Epic Risks and Mitigations
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| LightRAG library maturity (0.x version) | Medium | High | Consider 2-day spike to validate before starting; have fallback plan for custom implementation |
+| Epic size (11 stories, 48 points) | Medium | Medium | Monitor progress weekly; consider splitting into Epic 3A/3B if timeline extends |
+| Performance targets (NFR1, NFR2, NFR9) | Medium | High | Implement benchmarking from Story 3.1; optimize incrementally throughout epic |
+| LLM API costs for entity extraction | Low | Medium | Use local models (Ollama); mock in tests; document cost estimates |
+| Graph visualization performance (large graphs) | Low | Low | Limit visualization scope; implement pagination/filtering |
+| Cross-document entity deduplication accuracy | Medium | Medium | Implement fuzzy matching (>90% threshold); manual review capabilities |
+
+---
+
+## Epic Definition of Done
+
+- [ ] All 11 stories completed with acceptance criteria met
+- [ ] Queue worker processing documents successfully
+- [ ] Entity extraction working with all 10 configured types
+- [ ] Relationship graph construction operational
+- [ ] Hybrid retrieval functional with all 4 modes
+- [ ] Performance targets validated (NFR1: <2s latency, NFR9: 40%+ reduction)
+- [ ] LightRAG Server UI deployed and accessible
+- [ ] Documentation complete (Neo4j Browser guide, exploration workflows)
+- [ ] Entity type evolution API operational
+- [ ] Integration tests pass for all stories
+- [ ] Demo: Query knowledge base with 5 CV documents → retrieve relevant results via hybrid retrieval → visualize graph → verify performance metrics
+
+---
+
+## Performance Targets (NFRs)
+
+**From PRD:**
+- **NFR1:** P95 query latency <2 seconds for 1000-document knowledge base ✅ Validated in Story 3.4
+- **NFR2:** MRR >0.80 on BEIR SciFact dataset (15+ percentage point improvement vs baseline) ✅ Validated in Epic 5 Story 5.7
+- **NFR9:** Metadata filtering demonstrates 40%+ latency reduction on 20% subset ✅ Validated in Story 3.5
+
+**Additional Performance Metrics:**
+- Entity extraction: <30s per CV document (Story 3.1, 3.2)
+- Relationship mapping: <5s per 100 entities (Story 3.3)
+- Reranking latency: <500ms for 50 candidates (Story 3.6)
+- Graph statistics query: <100ms (Story 3.3)
+
+---
+
+## Quality Standards to Maintain
+
+**From Epic 2 (90/100 average QA score):**
+- Type safety: `from __future__ import annotations` in all modules
+- Structured logging with context (doc_id, entity_type, query_id)
+- Comprehensive integration tests (80%+ coverage)
+- Performance metrics logged in every story
+- Documentation-first approach
+
+**Epic 3 Additions:**
+- Graph schema validation queries
+- LLM prompt engineering documentation
+- Cross-document entity deduplication testing
+- Retrieval mode comparison benchmarks
+
+---
+
+## Change Log
+
+| Date | Version | Description | Author |
+|------|---------|-------------|--------|
+| 2025-10-15 | 1.0 | Epic created from PRD | Sarah (PO Agent) |
+| 2025-10-17 | 2.0 | Status updated to Ready for Development; Added Story Files Index (11 stories, 48 points); Added Readiness Checklist (all dependencies met, no blockers); Added Recommended Sprint Plan (4 sprints); Added Epic Acceptance Criteria, Technical Notes, Risks, and Performance Targets; All story files created with comprehensive details | Sarah (PO Agent) |
 
 ---
