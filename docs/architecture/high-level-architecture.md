@@ -2,7 +2,7 @@
 
 ## Technical Summary
 
-RAG Engine implements a **microservices-based architecture** deployed via **Docker Compose**, combining best-in-class open-source RAG technologies (LightRAG, RAG-Anything) with a **FastAPI REST API layer** for universal access. The system uses **Neo4j** as both vector and graph storage to enable sophisticated entity-relationship retrieval, with **LiteLLM** proxy for flexible LLM access. Documents are processed through **RAG-Anything's multi-format parser**, indexed into LightRAG's **knowledge graph**, and served through multiple interfaces: **Open-WebUI function pipelines**, **MCP server protocol**, **REST API**, and future **n8n custom nodes** and **Pydantic SDK**. Deployment targets **Linux/macOS/Windows** via Docker containers with optional **GPU acceleration** for document processing. This architecture achieves "ultimate RAG" quality through graph-augmented retrieval while maintaining **single-command deployment simplicity** for the target user base of self-hosters and developers.
+RAG Engine implements a **microservices-based architecture** deployed via **Docker Compose**, combining best-in-class open-source RAG technologies (LightRAG, RAG-Anything) with a **FastAPI REST API layer** for universal access. The system uses **Neo4j** as both vector and graph storage to enable sophisticated entity-relationship retrieval, connecting to external **OpenAI-compatible LLM endpoints** (OpenAI, Ollama, Azure, or external LiteLLM proxy) for flexible LLM access. Documents are processed through **RAG-Anything's multi-format parser**, indexed into LightRAG's **knowledge graph**, and served through multiple interfaces: **Open-WebUI function pipelines**, **MCP server protocol**, **REST API**, and future **n8n custom nodes** and **Pydantic SDK**. Deployment targets **Linux/macOS/Windows** via Docker containers with optional **GPU acceleration** for document processing. This architecture achieves "ultimate RAG" quality through graph-augmented retrieval while maintaining **single-command deployment simplicity** for the target user base of self-hosters and developers.
 
 ## Platform and Infrastructure Choice
 
@@ -18,7 +18,7 @@ RAG Engine implements a **microservices-based architecture** deployed via **Dock
 - **Graph & Vector Database**: Neo4j 5.x (Community Edition for MVP, Enterprise optional)
 - **Document Processing**: RAG-Anything with MinerU parser
 - **RAG Framework**: LightRAG with graph-based retrieval
-- **LLM Proxy**: LiteLLM (optional, for enterprise LLM access)
+- **LLM Integration**: External OpenAI-compatible API endpoints (configurable)
 - **Storage**: Local volumes for persistence, with backup strategy via Neo4j dumps
 
 **Deployment Host and Regions:**
@@ -51,7 +51,6 @@ rag-engine/
 │   ├── api/           # FastAPI REST API
 │   ├── lightrag/      # LightRAG integration service
 │   ├── rag-anything/  # Document processing service
-│   └── litellm/       # Optional LLM proxy
 ├── shared/            # Shared Python modules
 │   ├── models/        # Pydantic data models
 │   ├── config/        # Configuration schemas
@@ -91,20 +90,16 @@ graph TB
 
         subgraph "Infrastructure Services"
             NEO4J[(Neo4j<br/>Graph + Vector DB)]
-            LITELLM[LiteLLM Proxy<br/>Optional]
         end
 
         FASTAPI --> LIGHTRAG
         FASTAPI --> RAGANYTHING
         LIGHTRAG --> NEO4J
         RAGANYTHING --> NEO4J
-        LIGHTRAG --> LITELLM
-        RAGANYTHING --> LITELLM
     end
 
     subgraph "External Dependencies"
-        LLM[External LLMs<br/>OpenAI/Anthropic/etc]
-        EMBEDDING[Embedding Models<br/>OpenAI/Local]
+        LLM[External LLM API<br/>OpenAI-compatible endpoint]
     end
 
     USER --> OPENWEBUI
@@ -117,19 +112,18 @@ graph TB
     API --> FASTAPI
     N8N --> FASTAPI
 
-    LITELLM --> LLM
-    LITELLM --> EMBEDDING
+    LIGHTRAG --> LLM
+    RAGANYTHING --> LLM
 
     style NEO4J fill:#4C8BF5
     style FASTAPI fill:#009688
     style LIGHTRAG fill:#00897B
     style RAGANYTHING fill:#00897B
-    style LITELLM fill:#FFA726
 ```
 
 ## Architectural Patterns
 
-- **Microservices Architecture:** Containerized services with clear boundaries (API, LightRAG, RAG-Anything, Neo4j, LiteLLM) - _Rationale:_ Enables independent scaling, isolated failure domains, and technology flexibility while maintaining operational simplicity via Docker Compose
+- **Microservices Architecture:** Containerized services with clear boundaries (API, LightRAG, RAG-Anything, Neo4j) - _Rationale:_ Enables independent scaling, isolated failure domains, and technology flexibility while maintaining operational simplicity via Docker Compose
 
 - **Repository Pattern:** Abstract data access to Neo4j through LightRAG's storage layer - _Rationale:_ Enables testing with mock storage and potential future migration to alternative graph databases
 

@@ -60,9 +60,6 @@ rag-engine/
 │   │   └── tests/
 │   │       ├── test_parsers.py
 │   │       └── test_processors.py
-│   │
-│   └── litellm/                    # LiteLLM proxy (optional)
-│       └── litellm_config.yaml     # Model configuration
 │
 ├── shared/                         # Shared Python modules
 │   ├── __init__.py

@@ -35,7 +35,7 @@
   - Average processing time per document
   - Success vs. failure rate
 - **LLM API Usage**:
-  - API calls/minute to LiteLLM
+  - API calls/minute to external LLM endpoints
   - LLM response latency
   - Token consumption (input/output)
   - Cost per query (Phase 2)

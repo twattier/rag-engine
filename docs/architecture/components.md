@@ -32,7 +32,7 @@
 - `async def get_entities(filters)` - Retrieve entities from graph
 - `async def get_relationships(entity_name)` - Get entity relationships
 
-**Dependencies:** Neo4j (graph + vector storage), LiteLLM Proxy (LLM + embeddings), RAG-Anything (for multi-modal content)
+**Dependencies:** Neo4j (graph + vector storage), OpenAI-compatible LLM endpoint (external), RAG-Anything (for multi-modal content)
 
 **Technology Stack:**
 - LightRAG Python library (latest from HKUDS/LightRAG)
@@ -53,7 +53,7 @@
 - `async def extract_equations(file_path)` - Parse LaTeX equations
 - `def check_parser_installation()` - Verify MinerU/dependencies installed
 
-**Dependencies:** MinerU parser, LiteLLM Proxy (for VLM image captioning), Neo4j (for storing multi-modal entities)
+**Dependencies:** MinerU parser, OpenAI-compatible VLM endpoint (external, optional for image captioning), Neo4j (for storing multi-modal entities)
 
 **Technology Stack:**
 - RAG-Anything Python library (latest from HKUDS/RAG-Anything)
@@ -90,31 +90,6 @@
 
 ---
 
-## LiteLLM Proxy (Optional)
-
-**Responsibility:** Unified LLM access layer supporting 100+ LLM providers with OpenAI-compatible API, cost tracking, fallback logic, and retry mechanisms. Optional component for users who want centralized LLM management.
-
-**Key Interfaces:**
-- `POST /chat/completions` - OpenAI-compatible chat completions
-- `POST /embeddings` - OpenAI-compatible embeddings
-- `GET /model/info` - Model availability and cost information
-- `GET /health` - Proxy health status
-
-**Dependencies:** External LLM providers (OpenAI, Anthropic, Azure, etc.)
-
-**Technology Stack:**
-- LiteLLM proxy server (latest from BerriAI/litellm)
-- Redis (optional) for caching LLM responses
-- Configuration via `litellm_config.yaml` mounted in Docker
-
-**Configuration Notes:**
-- **Fallback Models**: Configure primary + backup models for resilience
-- **Rate Limits**: Set per-model rate limits to avoid provider throttling
-- **Cost Tracking**: Enable budget limits per API key (Phase 2 feature)
-- **Caching**: Redis cache for identical prompts (reduces costs)
-
----
-
 ## Component Diagrams
 
 ```mermaid
@@ -129,11 +104,9 @@ C4Container
         Container(lightrag, "LightRAG Service", "Python, LightRAG", "Graph-based retrieval,<br/>entity extraction")
         Container(raganything, "RAG-Anything Service", "Python, RAG-Anything", "Multi-format parsing,<br/>multi-modal processing")
         Container(neo4j, "Neo4j Database", "Neo4j 5.x", "Graph + Vector storage,<br/>knowledge graph")
-        Container(litellm, "LiteLLM Proxy", "Python, LiteLLM", "Unified LLM access<br/>(optional)")
     }
 
-    System_Ext(llm, "External LLMs", "OpenAI, Anthropic, etc.")
-    System_Ext(embedding, "Embedding Models", "OpenAI, Local")
+    System_Ext(llm, "External LLM API", "OpenAI-compatible endpoint<br/>(OpenAI, Ollama, Azure, etc.)")
 
     Rel(user, api, "HTTP requests", "HTTPS")
     Rel(dev, api, "HTTP requests", "HTTPS")
@@ -141,10 +114,8 @@ C4Container
     Rel(api, raganything, "Python API calls", "Async")
     Rel(lightrag, neo4j, "Cypher queries", "Bolt Protocol")
     Rel(raganything, neo4j, "Cypher queries", "Bolt Protocol")
-    Rel(lightrag, litellm, "Chat/Embed requests", "HTTP")
-    Rel(raganything, litellm, "VLM requests", "HTTP")
-    Rel(litellm, llm, "API requests", "HTTPS")
-    Rel(litellm, embedding, "Embedding requests", "HTTPS")
+    Rel(lightrag, llm, "Chat/Embed requests", "HTTPS")
+    Rel(raganything, llm, "VLM requests (optional)", "HTTPS")
 ```
 
 ---

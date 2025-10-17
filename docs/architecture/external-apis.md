@@ -9,10 +9,10 @@
 - **Rate Limits:** Varies by tier (check OpenAI dashboard)
 
 **Key Endpoints Used:**
-- `POST /chat/completions` - Generate chat responses (via LiteLLM)
-- `POST /embeddings` - Generate embedding vectors (via LiteLLM)
+- `POST /chat/completions` - Generate chat responses
+- `POST /embeddings` - Generate embedding vectors
 
-**Integration Notes:** Accessed via LiteLLM proxy, not directly. Users configure API keys in LiteLLM config. Fallback to local models supported.
+**Integration Notes:** Accessed directly via OpenAI-compatible client configured with `LLM_ENDPOINT` environment variable. Can be replaced with any OpenAI-compatible endpoint (Ollama, Azure, external LiteLLM proxy, etc.).
 
 ---
 
@@ -25,9 +25,9 @@
 - **Rate Limits:** Varies by tier
 
 **Key Endpoints Used:**
-- `POST /messages` - Claude chat completions (via LiteLLM OpenAI-compatible wrapper)
+- `POST /messages` - Claude chat completions
 
-**Integration Notes:** Accessed via LiteLLM proxy with OpenAI-compatible interface. Requires `litellm` to translate OpenAI format to Anthropic format.
+**Integration Notes:** When using Anthropic models, configure an external LiteLLM proxy or similar translation service to convert OpenAI-compatible requests to Anthropic's native format. Alternatively, use Anthropic's OpenAI-compatible endpoint if available.
 
 ---
 

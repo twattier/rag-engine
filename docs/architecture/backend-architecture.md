@@ -46,9 +46,6 @@ services/
 │   │   ├── table_processor.py    # Table extraction/description
 │   │   └── equation_processor.py # LaTeX equation parsing
 │   └── Dockerfile                # RAG-Anything service container
-
-└── litellm/                      # LiteLLM proxy (optional)
-    └── litellm_config.yaml       # LiteLLM model configuration
 ```
 
 ---

@@ -1,0 +1,71 @@
+schema: 1
+story: '3.1'
+story_title: 'Integrate LightRAG Core Library and Initialize Graph Storage'
+gate: PASS
+status_reason: 'All acceptance criteria met. Configuration issues resolved, comprehensive E2E testing in place, production-ready implementation.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-10-17T00:00:00Z'
+
+top_issues:
+  - severity: medium
+    category: observability
+    description: '_count_document_entities and _count_document_relationships return hardcoded 0'
+    refs:
+      - 'shared/utils/lightrag_client.py:282-306'
+    suggested_owner: dev
+    impact: 'Logging always reports 0 entities/relationships regardless of actual extraction - reduces observability'
+
+  - severity: low
+    category: implementation
+    description: '_link_entities_to_document is placeholder but NOT NEEDED for LightRAG schema'
+    refs:
+      - 'services/api/app/workers/lightrag_worker.py:171-206'
+    suggested_owner: dev
+    impact: 'Function can remain as placeholder or be removed - LightRAG does not use CONTAINS relationships'
+
+waiver:
+  active: false
+
+quality_score: 90  # Production-ready with comprehensive testing
+expires: '2025-10-31T00:00:00Z'
+
+evidence:
+  tests_reviewed: 5  # 4 LightRAG tests + 1 full pipeline E2E
+  risks_identified: 1  # Only observability gap remains (minor)
+  refactoring_applied: true
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8]  # All ACs met
+    ac_gaps: []  # No gaps - all requirements satisfied
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Proper parameterized Neo4j queries, no injection risks, good error handling'
+  performance:
+    status: PASS
+    notes: 'Async patterns properly implemented, no blocking operations'
+  reliability:
+    status: PASS
+    notes: 'Worker starts successfully, proper error handling, provider-aware configuration'
+  maintainability:
+    status: PASS
+    notes: 'Good structure, clean abstraction, provider logic properly encapsulated'
+
+recommendations:
+  immediate:  # Applied during QA review
+    - action: 'COMPLETED: Added config helper methods get_llm_endpoint() and get_embedding_model()'
+      refs: ['services/api/app/config.py:89-124']
+    - action: 'COMPLETED: Updated worker to use helper methods'
+      refs: ['services/api/app/workers/lightrag_worker.py:40-41']
+    - action: 'COMPLETED: Updated integration tests to match LightRAG schema'
+      refs: ['services/api/tests/integration/test_lightrag_integration.py:103-109']
+
+  future:  # Optional improvements
+    - action: 'Implement actual entity/relationship counting for better observability'
+      refs: ['shared/utils/lightrag_client.py:282-306']
+    - action: 'Consider removing _link_entities_to_document placeholder (not needed for LightRAG)'
+      refs: ['services/api/app/workers/lightrag_worker.py:171-206']
+    - action: 'Add unit tests for LightRAGClient class'
+      refs: ['shared/utils/lightrag_client.py']
+    - action: 'Add performance benchmarks for entity extraction'
+      refs: ['services/api/app/workers/lightrag_worker.py']

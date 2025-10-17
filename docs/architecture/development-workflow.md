@@ -140,15 +140,15 @@ RAGANYTHING_OUTPUT_DIR=./output      # Parsed document output
 RAGANYTHING_PARSER=mineru            # mineru or docling
 RAGANYTHING_PARSE_METHOD=auto        # auto, ocr, txt
 
-# LLM Configuration (via LiteLLM)
-LITELLM_ENABLED=true                 # Set to false to use local models only
-LITELLM_PORT=4000                    # USER CONFIGURABLE
-LITELLM_CONFIG_PATH=./services/litellm/litellm_config.yaml
+# LLM Configuration (OpenAI-compatible endpoint)
+LLM_ENDPOINT=http://host.docker.internal:11434/v1  # Ollama example
+# LLM_ENDPOINT=https://api.openai.com/v1            # OpenAI
+# LLM_ENDPOINT=http://external-litellm:4000/v1      # External LiteLLM proxy
 
-# LLM API Keys (for LiteLLM)
-OPENAI_API_KEY=sk-...                # Optional: OpenAI API key
-ANTHROPIC_API_KEY=sk-ant-...         # Optional: Anthropic API key
-AZURE_API_KEY=...                    # Optional: Azure OpenAI
+# LLM API Keys (if required by endpoint)
+OPENAI_API_KEY=sk-...                # Required for OpenAI endpoint
+ANTHROPIC_API_KEY=sk-ant-...         # Required if using Anthropic via proxy
+AZURE_API_KEY=...                    # Required for Azure OpenAI
 
 # Embedding Model Configuration
 EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2  # Local (MVP)

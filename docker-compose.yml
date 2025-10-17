@@ -39,6 +39,29 @@ services:
       - LOG_FORMAT=${LOG_FORMAT:-json}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
       - RAG_ANYTHING_URL=${RAG_ANYTHING_URL:-http://rag-anything:8001}
+      # LLM Provider Configuration
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - LLM_ENDPOINT=${LLM_ENDPOINT}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - AZURE_API_KEY=${AZURE_API_KEY}
+      - AZURE_API_BASE=${AZURE_API_BASE}
+      - AZURE_API_VERSION=${AZURE_API_VERSION:-2024-02-15-preview}
+      - AZURE_DEPLOYMENT_NAME=${AZURE_DEPLOYMENT_NAME}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:7b-instruct-q4_K_M}
+      # Embedding Provider Configuration
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-local}
+      - LOCAL_EMBEDDING_MODEL=${LOCAL_EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      - EMBEDDING_DIM=${EMBEDDING_DIM:-384}
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      - OPENAI_EMBEDDING_DIM=${OPENAI_EMBEDDING_DIM:-1536}
+      # LightRAG Configuration
+      - LIGHTRAG_WORKING_DIR=${LIGHTRAG_WORKING_DIR:-/app/lightrag_cache}
+      - LIGHTRAG_MAX_TOKENS=${LIGHTRAG_MAX_TOKENS:-32768}
+      - LIGHTRAG_MAX_EMBED_TOKENS=${LIGHTRAG_MAX_EMBED_TOKENS:-8192}
+      - ENTITY_TYPES_CONFIG_PATH=${ENTITY_TYPES_CONFIG_PATH:-/app/config/entity-types.yaml}
     volumes:
       - ./services/api:/app
       - ./shared:/app/shared
@@ -63,9 +86,10 @@ services:
     environment:
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_AUTH=${NEO4J_AUTH:-neo4j/password}
-      - LLM_PROVIDER=${LLM_PROVIDER:-litellm}
-      - LITELLM_ENDPOINT=${LITELLM_ENDPOINT:-http://litellm:4000}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - LLM_ENDPOINT=${LLM_ENDPOINT}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-local}
+      - LOCAL_EMBEDDING_MODEL=${LOCAL_EMBEDDING_MODEL:-all-MiniLM-L6-v2}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       - ./services/lightrag:/app
@@ -100,21 +124,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  litellm:
-    image: ghcr.io/berriai/litellm:main-latest
-    container_name: rag-engine-litellm
-    ports:
-      - "${LITELLM_PORT:-4000}:4000"
-    environment:
-      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-sk-1234}
-    volumes:
-      - ./config/litellm_config.yaml:/app/config.yaml
-    networks:
-      - rag-engine-network
-    command: ["--config", "/app/config.yaml", "--port", "4000"]
-    profiles:
-      - with-litellm
 
 volumes:
   neo4j-data:

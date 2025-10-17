@@ -8,9 +8,12 @@ from __future__ import annotations
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import asyncio
 
 from app.config import settings
 from app.routers import config, documents, health
+from app.services.queue_service import LightRAGQueue
+from app.workers.lightrag_worker import process_documents
 # from app.middleware import RequestLoggingMiddleware  # TODO: Implement if needed
 from shared.utils.logging import configure_logging, get_logger
 
@@ -41,9 +44,19 @@ async def lifespan(app: FastAPI):
         api_port=settings.API_PORT,
     )
 
+    # Start LightRAG background worker (Epic 3.1)
+    from app.services.queue_service import queue_service
+    worker_task = asyncio.create_task(process_documents(queue_service))
+    logger.info("lightrag_worker_started")
+
     yield
 
-    # Shutdown
+    # Shutdown: Cancel worker
+    worker_task.cancel()
+    try:
+        await worker_task
+    except asyncio.CancelledError:
+        pass
     logger.info("api_service_shutting_down")
 
 

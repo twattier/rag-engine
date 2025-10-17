@@ -9,7 +9,7 @@ sequenceDiagram
     participant RAG as RAG-Anything Service
     participant LR as LightRAG Service
     participant Neo4j as Neo4j Database
-    participant LLM as LiteLLM Proxy
+    participant LLM as External LLM API
 
     User->>API: POST /documents/ingest<br/>(file, metadata)
     API->>API: Validate file type<br/>and metadata
@@ -51,7 +51,7 @@ sequenceDiagram
     participant API as FastAPI API
     participant LR as LightRAG Service
     participant Neo4j as Neo4j Database
-    participant LLM as LiteLLM Proxy
+    participant LLM as External LLM API
     participant Rerank as Reranker (optional)
 
     User->>API: POST /query<br/>{query, mode:"hybrid", top_k:60}

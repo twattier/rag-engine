@@ -37,7 +37,6 @@
     - [LightRAG Service](./components.md#lightrag-service)
     - [RAG-Anything Service](./components.md#rag-anything-service)
     - [Neo4j Database](./components.md#neo4j-database)
-    - [LiteLLM Proxy (Optional)](./components.md#litellm-proxy-optional)
     - [Component Diagrams](./components.md#component-diagrams)
   - [External APIs](./external-apis.md)
     - [OpenAI API (Optional)](./external-apis.md#openai-api-optional)
