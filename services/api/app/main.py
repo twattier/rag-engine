@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 import asyncio
 
 from app.config import settings
-from app.routers import config, documents, health
+from app.routers import config, documents, graph, health
 from app.services.queue_service import LightRAGQueue
 from app.workers.lightrag_worker import process_documents
 # from app.middleware import RequestLoggingMiddleware  # TODO: Implement if needed
@@ -90,6 +90,7 @@ app.add_middleware(
 app.include_router(health.router, tags=["health"])
 app.include_router(config.router)
 app.include_router(documents.router)
+app.include_router(graph.router)
 
 
 @app.get("/", tags=["root"])

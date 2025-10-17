@@ -415,3 +415,46 @@ class ReindexStatusResponse(BaseModel):
                 ],
             }
         }
+
+
+class GraphStatsResponse(BaseModel):
+    """Response for graph statistics endpoint."""
+
+    total_entities: int = Field(..., description="Total number of entities in graph", alias="totalEntities")
+    total_relationships: int = Field(..., description="Total number of relationships in graph", alias="totalRelationships")
+    entity_type_distribution: Dict[str, int] = Field(
+        ..., description="Distribution of entity types", alias="entityTypeDistribution"
+    )
+    relationship_type_distribution: Dict[str, int] = Field(
+        ..., description="Distribution of relationship types", alias="relationshipTypeDistribution"
+    )
+    total_documents: int = Field(..., description="Total number of documents", alias="totalDocuments")
+    cross_document_entities: int = Field(
+        ..., description="Number of entities appearing in multiple documents", alias="crossDocumentEntities"
+    )
+
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "totalEntities": 523,
+                "totalRelationships": 1247,
+                "entityTypeDistribution": {
+                    "person": 145,
+                    "technology": 98,
+                    "company": 67,
+                    "skill": 213,
+                },
+                "relationshipTypeDistribution": {
+                    "MENTIONS": 420,
+                    "RELATED_TO": 367,
+                    "PART_OF": 258,
+                    "IMPLEMENTS": 134,
+                    "DEPENDS_ON": 45,
+                    "LOCATED_IN": 18,
+                    "AUTHORED_BY": 5,
+                },
+                "totalDocuments": 42,
+                "crossDocumentEntities": 87,
+            }
+        }

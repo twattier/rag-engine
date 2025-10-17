@@ -63,6 +63,12 @@ class MockEntityStore:
         if target_entity_id in self.entities:
             self.entities[target_entity_id]["confidence_score"] = new_confidence
 
+    async def create_appears_in_relationship(
+        self, entity_id: str, document_id
+    ) -> None:
+        """Mock APPEARS_IN relationship creation."""
+        pass  # No-op for unit tests
+
 
 @pytest.fixture
 def mock_entity_store():

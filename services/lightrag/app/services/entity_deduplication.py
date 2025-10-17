@@ -40,6 +40,8 @@ class EntityDeduplicator:
     ) -> str:
         """Find existing entity or create new one, handling deduplication.
 
+        Also creates APPEARS_IN relationship for cross-document linking.
+
         Args:
             entity: Extracted entity to process
             embedding: Optional vector embedding for entity
@@ -58,6 +60,10 @@ class EntityDeduplicator:
                 entity_name=entity.entity_name,
                 entity_type=entity.entity_type,
                 entity_id=existing_entity["id"],
+            )
+            # Create APPEARS_IN relationship for cross-document linking
+            await self.entity_store.create_appears_in_relationship(
+                existing_entity["id"], entity.source_document_id
             )
             return existing_entity["id"]
 
@@ -86,6 +92,11 @@ class EntityDeduplicator:
                 entity_id=duplicate_entity["id"],
             )
 
+            # Create APPEARS_IN relationship for cross-document linking
+            await self.entity_store.create_appears_in_relationship(
+                duplicate_entity["id"], entity.source_document_id
+            )
+
             return duplicate_entity["id"]
 
         # No duplicate found - create new entity
@@ -96,6 +107,11 @@ class EntityDeduplicator:
             entity_name=entity.entity_name,
             entity_type=entity.entity_type,
             entity_id=entity_id,
+        )
+
+        # Create APPEARS_IN relationship for the new entity
+        await self.entity_store.create_appears_in_relationship(
+            entity_id, entity.source_document_id
         )
 
         return entity_id

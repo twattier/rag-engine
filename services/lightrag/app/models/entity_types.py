@@ -46,3 +46,38 @@ class ExtractedEntity(BaseModel):
         if not 0.0 <= v <= 1.0:
             raise ValueError("confidence_score must be between 0.0 and 1.0")
         return v
+
+
+class ExtractedRelationship(BaseModel):
+    """Relationship between entities extracted from a document by LLM."""
+
+    source_entity_name: str = Field(..., description="Name of the source entity")
+    target_entity_name: str = Field(..., description="Name of the target entity")
+    relationship_type: str = Field(..., description="Type of relationship (MENTIONS, RELATED_TO, PART_OF, etc.)")
+    confidence_score: float = Field(..., ge=0.0, le=1.0, description="Extraction confidence (0.0-1.0)")
+    source_document_id: UUID = Field(..., description="Document ID where relationship was found")
+
+    @field_validator("confidence_score")
+    @classmethod
+    def validate_confidence(cls, v: float) -> float:
+        """Ensure confidence score is between 0.0 and 1.0."""
+        if not 0.0 <= v <= 1.0:
+            raise ValueError("confidence_score must be between 0.0 and 1.0")
+        return v
+
+    @field_validator("relationship_type")
+    @classmethod
+    def validate_relationship_type(cls, v: str) -> str:
+        """Ensure relationship_type is uppercase and valid."""
+        if not v.isupper():
+            v = v.upper()
+
+        # Validate against known relationship types
+        valid_types = {
+            "MENTIONS", "RELATED_TO", "PART_OF", "IMPLEMENTS",
+            "DEPENDS_ON", "LOCATED_IN", "AUTHORED_BY"
+        }
+        if v not in valid_types:
+            raise ValueError(f"relationship_type must be one of {valid_types}")
+
+        return v

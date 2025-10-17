@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 import structlog
 from neo4j import AsyncDriver
 
-from ..models.entity_types import ExtractedEntity
+from ..models.entity_types import ExtractedEntity, ExtractedRelationship
 
 logger = structlog.get_logger(__name__)
 
@@ -250,4 +250,108 @@ class Neo4jEntityStore:
                     "entity_merge_failed",
                     source_id=source_entity_id,
                     target_id=target_entity_id,
+                )
+
+    async def create_relationship(
+        self,
+        relationship: ExtractedRelationship,
+    ) -> str:
+        """Create a relationship between two entities in Neo4j.
+
+        Args:
+            relationship: Extracted relationship to store
+
+        Returns:
+            Relationship ID (generated UUID)
+
+        Raises:
+            RuntimeError: If source or target entity not found
+        """
+        rel_id = str(uuid4())
+
+        # Create relationship with generic :RELATIONSHIP label and specific type property
+        query = """
+        MATCH (e1:Entity {name: $source_name})
+        MATCH (e2:Entity {name: $target_name})
+        CREATE (e1)-[r:RELATIONSHIP {
+            id: $id,
+            type: $rel_type,
+            confidence: $confidence,
+            source_doc_id: $source_doc_id,
+            created_at: datetime()
+        }]->(e2)
+        RETURN r.id AS id
+        """
+
+        params = {
+            "id": rel_id,
+            "source_name": relationship.source_entity_name,
+            "target_name": relationship.target_entity_name,
+            "rel_type": relationship.relationship_type,
+            "confidence": relationship.confidence_score,
+            "source_doc_id": str(relationship.source_document_id),
+        }
+
+        async with self.driver.session(database=self.database) as session:
+            result = await session.run(query, **params)
+            record = await result.single()
+
+            if not record:
+                error_msg = f"Could not create relationship: source '{relationship.source_entity_name}' or target '{relationship.target_entity_name}' not found"
+                logger.error(
+                    "relationship_creation_failed",
+                    source=relationship.source_entity_name,
+                    target=relationship.target_entity_name,
+                    error=error_msg,
+                )
+                raise RuntimeError(error_msg)
+
+            logger.debug(
+                "relationship_created",
+                rel_id=rel_id,
+                source=relationship.source_entity_name,
+                target=relationship.target_entity_name,
+                rel_type=relationship.relationship_type,
+            )
+
+            return record["id"]
+
+    async def create_appears_in_relationship(
+        self, entity_id: str, document_id: UUID
+    ) -> None:
+        """Create APPEARS_IN relationship from Entity to Document.
+
+        This tracks which documents mention this entity (for cross-document linking).
+
+        Args:
+            entity_id: Entity UUID
+            document_id: Document UUID
+        """
+        query = """
+        MATCH (e:Entity {id: $entity_id})
+        MATCH (d:Document {id: $doc_id})
+        MERGE (e)-[r:APPEARS_IN]->(d)
+        RETURN e.id AS entity_id, d.id AS doc_id
+        """
+
+        params = {
+            "entity_id": entity_id,
+            "doc_id": str(document_id),
+        }
+
+        async with self.driver.session(database=self.database) as session:
+            result = await session.run(query, **params)
+            record = await result.single()
+
+            if record:
+                logger.debug(
+                    "appears_in_relationship_created",
+                    entity_id=entity_id,
+                    doc_id=str(document_id),
+                )
+            else:
+                logger.warning(
+                    "appears_in_relationship_failed",
+                    entity_id=entity_id,
+                    doc_id=str(document_id),
                 )
